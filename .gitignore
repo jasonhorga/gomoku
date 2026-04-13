@@ -21,3 +21,4 @@ ai_server/logs/
 # OS
 .DS_Store
 Thumbs.db
+ai_server/dist/
