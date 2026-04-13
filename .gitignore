@@ -1,0 +1,23 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# Build output
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Model weights & training artifacts
+ai_server/data/weights/*.pt
+ai_server/data/weights/*.pkl
+ai_server/data/weights/*.onnx
+ai_server/logs/
+
+# OS
+.DS_Store
+Thumbs.db
