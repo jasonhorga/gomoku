@@ -230,10 +230,13 @@ def run_one_iteration(model, iter_idx, args, bootstrap_pool, fresh_pool, logger)
     # lower-quality self-play data.
     fresh_pool.extend(fresh)
     fr = getattr(args, 'fresh_ratio', 1.0)
-    fresh_cap = min(
-        max(args.replay_size - len(bootstrap_pool), len(fresh)),
-        int(len(bootstrap_pool) * fr),
-    )
+    if len(bootstrap_pool) == 0:
+        fresh_cap = args.replay_size
+    else:
+        fresh_cap = min(
+            max(args.replay_size - len(bootstrap_pool), len(fresh)),
+            int(len(bootstrap_pool) * fr),
+        )
     if len(fresh_pool) > fresh_cap:
         fresh_pool[:] = fresh_pool[-fresh_cap:]
     logger.info(f"  bootstrap pool: {len(bootstrap_pool)} (fixed)")

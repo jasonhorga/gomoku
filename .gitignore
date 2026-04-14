@@ -17,6 +17,7 @@ ai_server/data/weights/*.pt
 ai_server/data/weights/*.pkl
 ai_server/data/weights/*.onnx
 !ai_server/data/weights/best_model.pt
+!ai_server/data/weights/best_model.onnx
 ai_server/logs/
 
 # OS

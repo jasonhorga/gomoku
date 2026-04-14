@@ -31,20 +31,42 @@ def export(input_path: str, output_path: str, num_filters=32,
         model.load_state_dict(ckpt)
     model.eval()
 
+    total_params = sum(p.numel() for p in model.parameters())
+    expected_mb = total_params * 4 / (1024 * 1024)
+    print(f"Model parameters: {total_params:,}  (~{expected_mb:.1f} MB in fp32)")
+    print(f"PyTorch version: {torch.__version__}")
+
     dummy_input = torch.randn(1, input_channels, 15, 15)
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+    # Force the legacy (non-dynamo) exporter. In PyTorch 2.5+ the default
+    # dispatches to torch.onnx.dynamo_export which can emit an empty shell
+    # if onnxscript fails, producing a tiny file.
     torch.onnx.export(
         model, dummy_input, output_path,
         input_names=['board'],
         output_names=['policy', 'value'],
         dynamic_axes={'board': {0: 'batch'}},
-        opset_version=13,
+        opset_version=17,
+        dynamo=False,
     )
+
+    # If torch emitted external data (model.onnx + model.onnx.data),
+    # collapse it back into a single self-contained .onnx file.
+    data_sidecar = output_path + ".data"
+    if os.path.exists(data_sidecar):
+        print(f"Detected external weights sidecar: {data_sidecar}")
+        import onnx
+        onnx_model = onnx.load(output_path)  # auto-loads sidecar
+        onnx.save_model(onnx_model, output_path, save_as_external_data=False)
+        os.remove(data_sidecar)
+        print(f"  Embedded weights into {output_path}, removed sidecar.")
 
     size_kb = os.path.getsize(output_path) / 1024
     print(f"Exported ONNX model to {output_path} ({size_kb:.0f} KB)")
     print(f"  Input shape: (batch, {input_channels}, 15, 15)")
+    if size_kb < expected_mb * 1024 * 0.5:
+        print(f"  WARNING: file is much smaller than expected {expected_mb:.1f} MB.")
 
 
 def main():
