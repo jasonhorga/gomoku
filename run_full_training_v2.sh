@@ -163,7 +163,7 @@ echo ""
 echo "[7/7] Packaging Gomoku.app..."
 cd "$PROJ_DIR"
 
-APP_ZIP="build/gobang_macos.zip"
+APP_ZIP="build/gomoku_macos.zip"
 if [ ! -f "$APP_ZIP" ]; then
     echo "ERROR: $APP_ZIP not found! Compile on Linux first."
     exit 1

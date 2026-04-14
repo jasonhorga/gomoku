@@ -4,7 +4,7 @@
 # 在 MacBook 上运行，跑完就有完整的 Gomoku.app
 #
 # 用法:
-#   cd gobang
+#   cd gomoku
 #   chmod +x run_on_mac.sh
 #   ./run_on_mac.sh
 #
@@ -83,7 +83,7 @@ echo ""
 echo "[6/6] Packaging Gomoku.app..."
 cd "$PROJ_DIR"
 
-APP_ZIP="build/gobang_macos.zip"
+APP_ZIP="build/gomoku_macos.zip"
 if [ ! -f "$APP_ZIP" ]; then
     echo "ERROR: $APP_ZIP not found! Compile on Linux first."
     exit 1

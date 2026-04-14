@@ -1,0 +1,128 @@
+name: CD — TestFlight (iOS)
+
+on:
+  push:
+    tags:
+      - 'ios-v*'
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes for this build'
+        required: false
+        default: 'Manual build'
+
+concurrency:
+  group: ios-cd-testflight
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.5.1"
+
+jobs:
+  deploy:
+    name: Build & Deploy to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Select Xcode 26.x
+        run: |
+          set -e
+          PREFERRED_XCODE="/Applications/Xcode_26.2.app"
+          FOUND_XCODE=""
+          if [ -d "$PREFERRED_XCODE" ]; then
+            FOUND_XCODE="$PREFERRED_XCODE"
+          else
+            MATCHES=$(ls -d /Applications/Xcode_26*.app 2>/dev/null || true)
+            if [ -z "$MATCHES" ]; then
+              echo "❌ No Xcode 26.x found"; exit 1
+            fi
+            FOUND_XCODE=$(echo "$MATCHES" | sort -V | tail -n1)
+          fi
+          sudo xcode-select -s "$FOUND_XCODE"
+          xcodebuild -version
+
+      - name: Cache Godot + export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-ios-v1
+
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot
+          cd ~/godot
+          GODOT_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          curl -fsSL -o godot.zip "$GODOT_URL"
+          unzip -q godot.zip
+          mv "Godot.app" "Godot.app"
+          chmod +x "Godot.app/Contents/MacOS/Godot"
+          ln -sf "$HOME/godot/Godot.app/Contents/MacOS/Godot" "$HOME/godot/godot"
+          ./godot --version
+
+          TEMPLATES_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          curl -fsSL -o templates.tpz "$TEMPLATES_URL"
+          TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          unzip -q -o templates.tpz -d /tmp/godot_templates
+          mv /tmp/godot_templates/templates/* "$TEMPLATE_DIR/"
+          ls "$TEMPLATE_DIR" | head -5
+
+      - name: Add Godot to PATH
+        run: echo "$HOME/godot" >> "$GITHUB_PATH"
+
+      - name: Godot import assets
+        run: |
+          set -e
+          godot --headless --import --quit || true
+
+      - name: Export iOS Xcode project
+        run: |
+          set -e
+          mkdir -p build/ios
+          godot --headless --export-release "iOS" build/ios/gomoku.ipa
+          ls -la build/ios/
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Validate signing secrets
+        env:
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$MATCH_GIT_URL" || (echo "❌ Missing MATCH_GIT_URL"; exit 1)
+          test -n "$MATCH_PASSWORD" || (echo "❌ Missing MATCH_PASSWORD"; exit 1)
+          test -n "$MATCH_KEYCHAIN_PASSWORD" || (echo "❌ Missing MATCH_KEYCHAIN_PASSWORD"; exit 1)
+
+      - name: Run Fastlane Beta
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: bundle exec fastlane beta
+
+      - name: Upload IPA artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gomoku-${{ github.ref_name }}
+          path: build/ios/*.ipa
+          retention-days: 30

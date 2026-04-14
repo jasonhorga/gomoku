@@ -6,7 +6,7 @@
 #   pip install pyinstaller onnxruntime numpy
 #
 # Usage:
-#   cd gobang/ai_server
+#   cd gomoku/ai_server
 #   ./build_server.sh
 #
 # After this, copy dist/gomoku_ai_server into:

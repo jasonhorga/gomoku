@@ -7,7 +7,7 @@
 # 如果 FAIL 就不要烧一晚机器 --- 回来找 Claude.
 #
 # 用法:
-#   cd gobang
+#   cd gomoku
 #   chmod +x run_smoke_on_mac.sh
 #   ./run_smoke_on_mac.sh
 #

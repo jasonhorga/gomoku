@@ -23,6 +23,13 @@ func _ready() -> void:
 	%Level5.pressed.connect(_select_level.bind(5))
 	%Level6.pressed.connect(_select_level.bind(6))
 
+	# Level 6 needs the bundled Python AI server, which cannot run on iOS
+	# (sandboxed, no subprocess/Python interpreter available).
+	if OS.has_feature("mobile") or OS.get_name() == "iOS":
+		%Level6.visible = false
+		if selected_level == 6:
+			selected_level = 5
+
 	%BackButton.pressed.connect(_on_back)
 	%StartButton.pressed.connect(_on_start)
 

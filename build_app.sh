@@ -4,16 +4,16 @@
 #   1. Training is done (ai_server/data/weights/gen_XXX.pt exists)
 #   2. ONNX export is done (ai_server/data/weights/model.onnx exists)
 #   3. AI server is built (ai_server/dist/gomoku_ai_server exists)
-#   4. Godot .app base exists (build/gobang_macos.zip)
+#   4. Godot .app base exists (build/gomoku_macos.zip)
 #
 # Usage:
-#   cd gobang
+#   cd gomoku
 #   ./build_app.sh
 
 set -e
 cd "$(dirname "$0")"
 
-APP_ZIP="build/gobang_macos.zip"
+APP_ZIP="build/gomoku_macos.zip"
 SERVER="ai_server/dist/gomoku_ai_server"
 ONNX_MODEL="ai_server/data/weights/model.onnx"
 OUTPUT="build/Gomoku_final.zip"

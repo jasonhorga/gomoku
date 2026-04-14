@@ -1,0 +1,154 @@
+# frozen_string_literal: true
+
+default_platform(:ios)
+
+BUNDLE_ID = "com.jasonhorga.gomoku"
+APP_NAME = "五子棋"
+XCODE_PROJECT = "build/ios/gomoku.xcodeproj"
+SCHEME = "gomoku"
+OUTPUT_IPA = "gomoku.ipa"
+
+platform :ios do
+  def load_asc_api_key!
+    raw_key = ENV["ASC_PRIVATE_KEY"] || ""
+    clean_key = raw_key
+                  .gsub("\\n", "\n")
+                  .gsub("\r", "")
+                  .delete("\u0000")
+                  .strip
+
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: clean_key,
+      is_key_content_base64: false,
+      in_house: false
+    )
+  end
+
+  def ensure_match_env!
+    required = %w[MATCH_GIT_URL MATCH_PASSWORD MATCH_KEYCHAIN_PASSWORD]
+    missing = required.select { |k| ENV[k].to_s.strip.empty? }
+    return if missing.empty?
+
+    UI.user_error!(
+      "Missing required signing env vars: #{missing.join(', ')}"
+    )
+  end
+
+  def ensure_app_exists!
+    asc_app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    return if asc_app
+
+    UI.user_error!(
+      "App '#{BUNDLE_ID}' does not exist on App Store Connect.\n" \
+      "Create it manually at https://appstoreconnect.apple.com\n" \
+      "  • Bundle ID: #{BUNDLE_ID}\n" \
+      "  • App Name: #{APP_NAME}\n" \
+      "  • Primary Language: 简体中文\n" \
+      "  • SKU: #{BUNDLE_ID}"
+    )
+  end
+
+  desc "One-time bootstrap of signing certificates in match repo"
+  lane :bootstrap_signing do
+    api_key = load_asc_api_key!
+    ensure_match_env!
+
+    create_keychain(
+      name: "gomoku-ci-signing",
+      password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600
+    )
+
+    match(
+      api_key: api_key,
+      type: "appstore",
+      readonly: false,
+      storage_mode: "git",
+      git_url: ENV["MATCH_GIT_URL"],
+      app_identifier: [BUNDLE_ID],
+      keychain_name: "gomoku-ci-signing",
+      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+      force: true,
+      force_for_new_devices: false
+    )
+
+    UI.success("match bootstrap complete.")
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    api_key = load_asc_api_key!
+    ensure_match_env!
+    ensure_app_exists!
+
+    signing_style = ENV.fetch("BETA_CODE_SIGN_STYLE", "Manual")
+    development_team = ENV.fetch("BETA_DEVELOPMENT_TEAM", "6HB84897DJ")
+
+    create_keychain(
+      name: "gomoku-ci-signing",
+      password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600
+    )
+
+    match(
+      api_key: api_key,
+      type: "appstore",
+      readonly: false,
+      storage_mode: "git",
+      git_url: ENV["MATCH_GIT_URL"],
+      app_identifier: [BUNDLE_ID],
+      keychain_name: "gomoku-ci-signing",
+      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+      force: true,
+      force_for_new_devices: false
+    )
+
+    begin
+      latest_build = latest_testflight_build_number(
+        api_key: api_key,
+        app_identifier: BUNDLE_ID
+      )
+    rescue => e
+      UI.important("Could not fetch latest build number (#{e.message}), starting from 0")
+      latest_build = 0
+    end
+
+    new_build_number = latest_build + 1
+    UI.message("Setting build number to #{new_build_number}")
+
+    increment_build_number(
+      build_number: new_build_number,
+      xcodeproj: XCODE_PROJECT
+    )
+
+    build_app(
+      project: XCODE_PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      output_directory: "build/ios",
+      output_name: OUTPUT_IPA,
+      export_method: "app-store",
+      clean: true,
+      export_options: {
+        signingStyle: signing_style.downcase,
+        provisioningProfiles: {
+          BUNDLE_ID => "match AppStore #{BUNDLE_ID}"
+        }
+      },
+      xcargs: "CODE_SIGN_STYLE=#{signing_style} DEVELOPMENT_TEAM=#{development_team}"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      changelog: "Automated build from CI"
+    )
+  end
+end

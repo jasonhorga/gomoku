@@ -109,7 +109,7 @@ v2 16 局 = v1 1000 局的有效规模, 因为:
 
 **第一步: Smoke Test (10-15 分钟)**
 ```bash
-cd gobang
+cd gomoku
 ./run_smoke_on_mac.sh
 ```
 看最后的 `VERDICT` 区块:

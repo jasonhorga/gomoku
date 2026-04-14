@@ -58,7 +58,7 @@
 ### 文件结构
 
 ```
-gobang/
+gomoku/
   scripts/
     game_logic.gd              ← 核心：15x15棋盘 + 胜负判定
     autoload/

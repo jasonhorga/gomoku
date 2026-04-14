@@ -76,8 +76,8 @@ export_presets.cfg              — 导出配置
 | **tmpfiles.org** | **成功**，约 1 小时有效期 |
 
 ### 构建产物
-- `build/gobang.x86_64` — Linux 可执行文件 (60MB, PCK 嵌入)
-- `build/gobang_macos.zip` — macOS Universal (arm64+x86_64) .app 包 (46MB)
+- `build/gomoku.x86_64` — Linux 可执行文件 (60MB, PCK 嵌入)
+- `build/gomoku_macos.zip` — macOS Universal (arm64+x86_64) .app 包 (46MB)
 
 ## Current Status (2026-04-09)
 - 联网功能：✅ 已验证可用

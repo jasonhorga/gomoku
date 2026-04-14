@@ -115,7 +115,7 @@ The MCTS engine has 3 modes depending on configuration:
 
 ### Running training
 ```bash
-cd gobang/ai_server
+cd gomoku/ai_server
 python3 -m nn.bootstrap --games 200 --simulations 400 --epochs 50 \
     --filters 128 --blocks 6 --save-name bootstrap_128f6b.pt --log-file bootstrap_128f6b.log
 
@@ -143,6 +143,6 @@ python3 -m nn.iterate --initial-model data/weights/bootstrap_128f6b.pt \
 5. Fix the code and restart from the last good checkpoint
 
 ## GitHub
-- Repo: github.com/jasonhorga/gobang (private)
+- Repo: github.com/jasonhorga/gomoku (private)
 - Git operations done from local disk copy due to Drive mount slowness
 - SSH key: ~/.ssh/id_ed25519_hejia
