@@ -8,7 +8,9 @@ a = Analysis(
     datas=[
         ('protocol.py', '.'),
         ('ai', 'ai'),
-        ('data/weights/model.onnx', 'data/weights'),
+        # Note: model.onnx is NOT bundled here — it's copied into the
+        # .app alongside the binary by build_app.sh, and the server's
+        # find_model() looks next to the executable.
     ],
     hiddenimports=[
         'onnxruntime',

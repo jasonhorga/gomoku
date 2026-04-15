@@ -84,6 +84,14 @@ jobs:
           godot --headless --export-release "macOS" build/gomoku_macos.zip
           ls -la build/gomoku_macos.zip
 
+      - name: Ensure ONNX model is present
+        run: |
+          set -e
+          if [ ! -f ai_server/data/weights/model.onnx ] && [ -f ai_server/data/weights/best_model.onnx ]; then
+            cp ai_server/data/weights/best_model.onnx ai_server/data/weights/model.onnx
+          fi
+          ls -la ai_server/data/weights/model.onnx
+
       - name: Set up Python for AI server build
         uses: actions/setup-python@v5
         with:
@@ -94,17 +102,9 @@ jobs:
           set -e
           cd ai_server
           pip install --quiet pyinstaller onnxruntime numpy
-          pyinstaller gomoku_ai_server.spec
+          pyinstaller --clean --noconfirm gomoku_ai_server.spec
           ls -la dist/gomoku_ai_server
           file dist/gomoku_ai_server
-
-      - name: Ensure ONNX model is present
-        run: |
-          set -e
-          if [ ! -f ai_server/data/weights/model.onnx ] && [ -f ai_server/data/weights/best_model.onnx ]; then
-            cp ai_server/data/weights/best_model.onnx ai_server/data/weights/model.onnx
-          fi
-          ls -la ai_server/data/weights/model.onnx
 
       - name: Assemble Gomoku.app (build_app.sh)
         run: |
