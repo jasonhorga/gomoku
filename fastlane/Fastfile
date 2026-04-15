@@ -287,8 +287,9 @@ platform :mac do
 
     sh("codesign --verify --deep --strict --verbose=2 '#{app_path}'")
 
-    zip_path = "build/Gomoku_notarize.zip"
-    sh("rm -f #{zip_path}")
+    build_dir = File.dirname(app_path)
+    zip_path = File.join(build_dir, "Gomoku_notarize.zip")
+    sh("rm -f '#{zip_path}'")
     sh("ditto -c -k --keepParent '#{app_path}' '#{zip_path}'")
 
     # Write ASC API key to temp file for notarytool
@@ -311,8 +312,8 @@ platform :mac do
     sh("xcrun stapler staple '#{app_path}'")
     sh("xcrun stapler validate '#{app_path}'")
 
-    final_zip = "build/Gomoku_signed.zip"
-    sh("rm -f #{final_zip}")
+    final_zip = File.join(build_dir, "Gomoku_signed.zip")
+    sh("rm -f '#{final_zip}'")
     sh("ditto -c -k --keepParent '#{app_path}' '#{final_zip}'")
 
     UI.success("Signed + notarized + stapled: #{final_zip}")
