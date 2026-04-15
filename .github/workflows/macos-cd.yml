@@ -109,7 +109,7 @@ jobs:
       - name: Assemble Gomoku.app (build_app.sh)
         run: |
           set -e
-          ./build_app.sh
+          bash build_app.sh
           # Extract for signing
           rm -rf build/Gomoku.app
           unzip -q build/Gomoku_final.zip -d build/
