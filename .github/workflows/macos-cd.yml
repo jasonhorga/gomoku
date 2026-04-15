@@ -106,6 +106,10 @@ jobs:
           ls -la dist/gomoku_ai_server
           file dist/gomoku_ai_server
 
+      - name: Inspect Godot macOS export output
+        run: |
+          unzip -l build/gomoku_macos.zip | head -30
+
       - name: Assemble Gomoku.app (build_app.sh)
         run: |
           set -e
