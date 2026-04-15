@@ -143,7 +143,7 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
-          GOMOKU_APP_PATH: build/Gomoku.app
+          GOMOKU_APP_PATH: ${{ github.workspace }}/build/Gomoku.app
         run: bundle exec fastlane mac macos_beta
 
       - name: Upload signed .app zip
