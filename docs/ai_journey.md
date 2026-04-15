@@ -5,7 +5,8 @@
 > 面向 ML 初学者：不假设你懂神经网络或强化学习。需要用到的概念会从头解释。
 >
 > 时间跨度：2026-03-30 ~ 2026-04-15（约两周）
-> 当前状态（2026-04-15）：`best_model.pt = big_iter_1` (128f/6b)，对 bootstrap 版本胜率 66.9%，已集成到 iOS/macOS 打包
+> 最后更新：2026-04-15（新增 Section 13 部署成熟化：AI 性能修复 + macOS 签名 CI）
+> 当前状态：`best_model.pt = big_iter_1` (128f/6b)，对 bootstrap 版本胜率 66.9%；已签名+公证的 `Gomoku_signed.zip` 可分发
 
 ---
 
@@ -23,6 +24,7 @@
 10. [经验教训 TL;DR](#10-经验教训-tldr)
 11. [当前模型与部署现状](#11-当前模型与部署现状)
 12. [未来方向](#12-未来方向)
+13. [Part 2: 部署成熟化 (2026-04-15)](#13-part-2-部署成熟化2026-04-15-下午)
 
 ---
 
@@ -709,11 +711,15 @@ big_iter_3.pt (128f/6b, plateau)
 - **`best_model.pt`** = `big_iter_1.pt` 的副本，提交到 git（8.1 MB）
 - **`best_model.onnx`** = 导出给 Godot/iOS 推理用（8.0 MB 单文件，内嵌 `.data` 权重）
 - **`export_onnx.py`**：导出脚本，新 PyTorch 上要 `dynamo=False` + `save_as_external_data=False`
+- **`build/Gomoku_signed.zip`** (2026-04-15 起) = macos-cd workflow 产物，已签名 + 公证 + stapled，双击即开
 
 ### 11.3 Godot 集成
 
 - Level 6 = CNN + MCTS，走 Python AI Server（TCP :9877）
-- macOS：AI Server 嵌入 .app bundle，游戏启动时自动 launch
+  - **重要**：onnx_server.py 现在包含 MCTSEngine（2026-04-15 前是纯 CNN no MCTS，强度被砍一半 —— 见 Section 13.1-C）
+  - 默认 80 sims，可通过 `--sims N` 或 `GOMOKU_SIMS` 环境变量覆盖
+- AI server launcher：15 秒 poll 循环（2026-04-15 前是 1.5s 固定超时，经常错误 fallback —— 见 Section 13.1-B）
+- macOS：AI Server 嵌入 .app bundle，游戏启动时自动 launch；`model.onnx` 放在 `Contents/Resources/`（不是 `MacOS/`，Apple codesign 要求）
 - Linux：AI Server 在可执行文件同目录
 - iOS：**Level 6 被禁用**（`scenes/ai_setup/ai_setup.gd` 里硬编码 hide on mobile），因为 iOS 沙箱不能 subprocess。iOS 上只有 Level 1-5（纯 GDScript）
 
@@ -757,6 +763,98 @@ MacBook Air M5 + MPS：
 
 ---
 
+## 13. Part 2: 部署成熟化（2026-04-15 下午）
+
+开发主体完成后，花了半天把"能跑"变成"能交付"。两大块：**AI 性能问题诊断 + 修复**、**macOS 签名公证 CI 流水线**。
+
+### 13.1 AI 性能 4 个 Fix
+
+用户反馈 Mac 上 Level 5（MCTS）和 Level 6（CNN AI）都很慢。诊断后发现是 4 个不同问题：
+
+**A. Level 5 GDScript MCTS 默认 5000 sims 太多**
+- 实测 Ubuntu VM: **246 秒/步**（M5 上约 60-90 秒，不能忍）
+- GDScript 每 sim 做 15×15 棋盘深拷贝 + 每 rollout 步重扫 225 格，本质上算法可接受、实现在解释器里跑不动
+- 降到 1500 sims + rollout 步长 100→40 后约 10 秒/步
+
+**B. Level 6 启动器 timeout bug**（实战里的"伪 Level 6"）
+- `ai_server_launcher.gd:30` 写死 `await 1.5 秒` 然后检查 TCP 端口
+- 但 pyinstaller + onnxruntime 冷启动需要 4-5 秒
+- 超时后 `_use_server = false` → Level 6 静默 fallback 到 GDScript MCTS(3000)
+- **用户以为自己在玩神经网络 AI，实际用的 MCTS（还慢还弱）**
+- 修复：15 秒 poll 循环（500ms 间隔），首次冷启动给足时间；warm 启动 <2 秒即 ready
+
+**C. 部署版 Level 6 没用 MCTS**（架构层面的"伪 Level 6"）
+- 这个坑最大。训练时用 `mcts_engine.py` 做 800-1600 sims 的 MCTS + CNN 混合搜索
+- 但**部署用的 `onnx_server.py` 只跑一次 CNN forward pass，直接取 argmax**
+- 等于把训练出来的 AI 拆了一半能力 —— 相当于训了 Alpha-MCTS，部署成 Alpha-Direct
+- 为什么这样？早期开发期图简单，忘了 MCTS
+- 修复：给 `onnx_server.py` 加 `OnnxModelAdapter` 类，把现成的 `MCTSEngine` 插进去，80 sims 默认
+- 性能惊喜：hybrid 模式下 **CNN 只在 root 调用一次算 priors**，leaf eval 用 pattern-based tanh（纯 numpy）
+- 实测 1 核 Ubuntu VM：普通局面 700ms，强制堵 14ms
+- M5 上预估 150-200ms/步 —— 比重写前的"每 leaf 跑 CNN"快一个量级
+
+**D. `model.onnx` 命名问题**
+- weights 目录只有 `best_model.onnx`，但 server 默认找 `model.onnx`
+- 双保险：`find_model()` 加回退路径、`build_server.sh` 自动 cp
+
+### 13.2 关键教训 Part 2（补充到 TL;DR）
+
+11. **部署和训练必须用同一套推理逻辑**。Section 13.1-C 的坑特别隐蔽 —— 训练指标完美，线上却弱。任何时候部署侧简化了推理管道，都要用基准测试对比原版确认强度没掉。
+
+12. **"Level 6 慢"的 bug 常常不是 CNN 慢，而是 fallback 被触发了**。用户看到的"慢 AI"可能根本不是你想的那个 AI。加 UI 显示当前 AI 类型（"Neural (server)" vs "Neural (MCTS fallback)"）很重要。
+
+13. **timeout 要配 poll，不要固定 sleep**。单点等待假设每个环境启动时间相同 —— 永远错。poll 间隔要考虑单次探测的开销（我们的 `_check_port_open` 自带 1s TCP timeout，poll 间隔 500ms 就够）。
+
+### 13.3 macOS 签名 + 公证流水线
+
+第二大块工作：把 Mac 分发从"未签名 + 用户 `xattr -cr`"变成"双击就开、不被 Gatekeeper 拦"。成果：`.github/workflows/macos-cd.yml`，推 `macos-v*` tag 或手动触发，产物是 `Gomoku_signed.zip`（~94MB，已签名 + 公证 + stapled）。
+
+踩了 14 个坑才打通。**这些坑每一个都可能在未来重现**，记下来省未来大量时间：
+
+| # | 问题 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | `com.gomoku.game` 不存在 Apple Developer portal | 早期乱起的占位名 | 改用 `com.jasonhorga.gomoku`（iOS/macOS 共用一个 App ID） |
+| 2 | ASC API 创建 Developer ID 证书报 generic error | **Apple ASC API 对 Developer ID 支持时好时坏**，Admin 权限也不保证能成 | 放弃 API 路线，**Mac 上手动生成 CSR → 下载证书 → 导出 .p12 → `fastlane match import`** |
+| 3 | Godot 4.2.2 macOS export 报 "configuration errors" 无具体原因 | Godot 4.2 的 macOS 导出在非 macOS 平台（甚至 macos-15 runner）都挂，错误信息被截断 | CI 升级 Godot 到 4.5.1（4.5 打印具体错误） |
+| 4 | Godot 4.5 要求 ETC2 ASTC 纹理 | arm64/universal export 在 4.5 里强制 | `project.godot` 加 `rendering/textures/vram_compression/import_etc2_astc=true` |
+| 5 | Export 模板找不到 `godot_macos_release.arm64` | Godot 4.5 模板里只有 universal 二进制 | preset 里 `binary_format/architecture` 从 `arm64` 改成 `universal` |
+| 6 | `build_app.sh: Permission denied` | `actions/checkout@v4` 在 macOS runner 上不保留 exec bit | 改用 `bash build_app.sh` 调用 |
+| 7 | `Gomoku.app/Contents/MacOS: No such file or directory` | Godot 把 .app 命名成 "五子棋 Gomoku.app"（取自 `config/name`，含中文+空格） | `build_app.sh` 动态查找 `*.app`，重命名成 `Gomoku.app`，并 normalize 内部 binary/pck 名称 |
+| 8 | `security import: MAC verification failed during PKCS12 import (wrong password?)` | **macOS 15 / Xcode 26 的 `security import` 拒绝空密码 .p12**（不管算法多现代/多 legacy） | 给 .p12 设置非空密码（用 MATCH_KEYCHAIN_PASSWORD） |
+| 9 | `fastlane match` 的 cert installer 默认用空密码 | match 内部假定 .p12 无密码 | **绕过 match 的 cert install**，Fastfile 里手动 `git clone` + `Match::Encryption.decrypt` + `security import -P <known>` |
+| 10 | 手动 `security find-identity` 返回空 | 引用方式错（`gomoku-macos-signing.keychain` 而不是完整路径） | 用 `$HOME/Library/Keychains/<name>-db` 完整路径 |
+| 11 | `codesign ... Gomoku.app` 报 "In subcomponent: MacOS/model.onnx" + "code object is not signed at all" | **Apple 不允许 `.app/Contents/MacOS/` 下放非 Mach-O 数据文件**。model.onnx 必须在 Resources/ | `build_app.sh` 把 model.onnx 放 `Contents/Resources/`，`onnx_server.py` 的 `find_model()` 加 `base/../Resources/` 到搜索路径 |
+| 12 | fastlane `sh` 和 workflow step 的 cwd 不一致 | fastlane 的 runner 会 `chdir` 到 fastlane/ 目录 | 所有路径改绝对路径（`GOMOKU_APP_PATH: ${{ github.workspace }}/build/Gomoku.app`） |
+| 13 | match 对 Developer ID 强制要 provisioning profile | Developer ID 分发（非 App Store）其实不需要 profile，但 match 不支持跳过 | 跳过 match 本身的 install 流程（见 #9） |
+| 14 | 最终 zip 路径相对 | 和 #12 同源 | `File.join(File.dirname(app_path), "Gomoku_signed.zip")` |
+
+**这 14 个坑里 #8 和 #11 是最"隐蔽"的**：openssl 能正常读我们的 .p12 + Apple security 不能读；Godot 能跑 + Apple codesign 拒绝。**macOS 的 `security` 和 `codesign` 比任何 OpenSSL 标准都严**。
+
+### 13.4 一次性 bootstrap 的 Developer ID 证书
+
+因为 ASC API 拒绝自动创建 Developer ID 证书（坑 #2），未来换 Apple Developer 账号、或证书过期（5 年一次）时，需要重复这个一次性流程：
+
+1. **Mac 上**（Keychain Access）:
+   - Certificate Assistant → Request a Certificate From a Certificate Authority → Saved to disk → 得到 `CertificateSigningRequest.certSigningRequest`
+2. **Apple Developer portal**（https://developer.apple.com/account/resources/certificates/add）:
+   - 选 **Developer ID Application** → **G2 Sub-CA** → 上传 CSR → 下载 `.cer`
+   - 双击 .cer 安装到 login keychain
+3. **Mac Keychain Access 导出 .p12**:
+   - login → My Certificates → 右键 "Developer ID Application: ..." → Export → 选 .p12 → 设密码
+4. **Linux dev 机**:
+   - `openssl pkcs12` 换成 legacy 格式 + empty → non-empty password → 用 fastlane Match::Encryption 加密 → commit 到 gomoku-signing repo master 分支
+
+具体命令在 git history `7a58d37`、`9162022`、`5aad6fc` 的 commit 里。
+
+### 13.5 当前部署状态（2026-04-15 收尾）
+
+- **`Gomoku_signed.zip`** (94MB) 在 `build/` 目录，签名 + 公证 + stapled
+- **Developer ID cert** 存在 `jasonhorga/gomoku-signing` master 分支，加密格式是 fastlane match v2（AES-GCM + PBKDF2-HMAC-SHA256）
+- **macos-cd workflow** 每次手动触发（或推 `macos-v*` tag 自动），~3-5 分钟跑完（含 notary 等待）
+- **iOS pipeline** 尚未测试（iOS CI 的 signing bootstrap 也没跑过，下一次真要发 iOS 时再测）
+
+---
+
 ## 附录：关键文件索引
 
 ```
@@ -777,11 +875,22 @@ ai_server/
   logs/                 — 所有训练 log（粒度到每局）
   
 docs/
-  ai_journey.md         ← 本文档（总览 + 原理）
+  ai_journey.md         ← 本文档（总览 + 原理 + 部署）
   technical_guide.md    ← 技术细节参考（代码级）
   training_v2_strategy.md ← 2026-04-11 v2 设计当时的想法（历史）
   upgrade_plan.md       ← 2026-04-09 Phase 1-5 总体规划（已完成）
   dev_log.md            ← 2026-04-09 早期开发日志（游戏部分）
-  
+
+.github/workflows/
+  ios.yml                    ← iOS TestFlight CD (未实测)
+  signing-bootstrap.yml      ← iOS match bootstrap (未实测)
+  macos-cd.yml               ← macOS 签名+公证 pipeline (2026-04-15 打通)
+  macos-signing-bootstrap.yml ← macOS Developer ID bootstrap (已失败，用手动 path B 代替)
+
+fastlane/
+  Fastfile              ← iOS + macOS lanes (macOS 用手动 security import 绕过 match)
+  Appfile               ← iOS app identifier
+  entitlements-macos.plist ← codesign hardened runtime entitlements
+
 run_overnight_128f6b.sh ← 生成 big_iter_1 的训练脚本（参考配置）
 ```
