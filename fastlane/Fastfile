@@ -262,6 +262,10 @@ platform :mac do
     entitlements = File.expand_path("entitlements-macos.plist", __dir__)
     team_id = ENV.fetch("BETA_DEVELOPMENT_TEAM", "6HB84897DJ")
 
+    UI.message("pwd=#{Dir.pwd}  app_path=#{app_path}")
+    sh("ls -la build/ || true")
+    UI.user_error!("App bundle not found at #{app_path}") unless File.directory?(app_path)
+
     # Find the Developer ID Application identity installed by the manual import above
     keychain_path = "#{ENV['HOME']}/Library/Keychains/#{MACOS_KEYCHAIN_NAME}-db"
     identity_line = sh("security find-identity -v -p codesigning '#{keychain_path}' | grep 'Developer ID Application' | head -1 || true", log: false).strip
