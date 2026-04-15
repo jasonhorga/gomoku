@@ -1,6 +1,8 @@
 ## Project Overview
 
-五子棋 (Gomoku/Gobang) - Godot 4.2.2 在线双人对战游戏，经典木纹棋盘风格。
+五子棋 (Gomoku) - Godot 4.2.2 在线双人对战游戏，经典木纹棋盘风格。
+
+> **这份文档只覆盖到 2026-04-09（游戏 v1 发布）。后续的 AI 开发 / 模型训练 / 重命名 / iOS CI 都在 [`ai_journey.md`](./ai_journey.md)。**
 
 ## Planning Phase (2026-04-09)
 

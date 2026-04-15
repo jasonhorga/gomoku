@@ -1,5 +1,16 @@
 # 五子棋 Gomoku - 产品升级计划
 
+> **📌 这份是 2026-04-09 写的整体规划（Phase 1-5）。Phase 1-5 全部完成，实际开发中做了不少调整。完整的"后来实际怎么做的 + 为什么这么做"在 [`ai_journey.md`](./ai_journey.md)。**
+>
+> **完成状态（2026-04-15）：**
+> - ✅ Phase 1 - 架构重构 + 单机双人
+> - ✅ Phase 2 - GDScript AI (Level 1-3)
+> - ✅ Phase 3 - 高级 AI (Level 4-5, Minimax depth 4 + MCTS)
+> - ✅ Phase 4 - AI vs AI + 棋局记录 + 权重调优
+> - ✅ Phase 5 - 神经网络 (Level 6, big_iter_1 128f/6b, 66.9% vs bootstrap)
+> - ➕ 额外：iOS TestFlight CI pipeline（2026-04-14/15）
+> - ➕ 额外：项目更名 gobang → gomoku（2026-04-14）
+
 ## Context
 
 当前项目是一个在线双人五子棋（ENet P2P），功能完整但模式单一。升级目标：
