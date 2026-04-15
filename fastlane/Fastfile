@@ -232,7 +232,8 @@ platform :mac do
       git_url: ENV["MATCH_GIT_URL"],
       app_identifier: [MACOS_BUNDLE_ID],
       keychain_name: MACOS_KEYCHAIN_NAME,
-      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"]
+      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],
+      skip_provisioning_profiles: true   # Developer ID distribution doesn't use profiles
     )
 
     app_path = ENV.fetch("GOMOKU_APP_PATH", "build/Gomoku.app")
