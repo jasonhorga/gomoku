@@ -23,3 +23,10 @@ ai_server/logs/
 .DS_Store
 Thumbs.db
 ai_server/dist/
+
+# Secrets - never commit
+*.p8
+AuthKey_*
+.env
+.env.*
+!.env.example
