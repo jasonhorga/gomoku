@@ -223,18 +223,40 @@ platform :mac do
       timeout: 3600
     )
 
-    match(
-      api_key: api_key,
-      type: "developer_id",
-      platform: "macos",
-      readonly: true,
-      storage_mode: "git",
-      git_url: ENV["MATCH_GIT_URL"],
-      app_identifier: [MACOS_BUNDLE_ID],
-      keychain_name: MACOS_KEYCHAIN_NAME,
-      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"],
-      skip_provisioning_profiles: true   # Developer ID distribution doesn't use profiles
-    )
+    # Manually clone + decrypt + import the Developer ID cert.
+    # We bypass `match()` because:
+    #   1. Developer ID distribution doesn't need provisioning profiles,
+    #      but `match` insists on creating/verifying them.
+    #   2. `match`'s default cert install uses an empty .p12 password, which
+    #      macOS 15 / Xcode 26's `security import` rejects with
+    #      "MAC verification failed". So the .p12 is stored with
+    #      MATCH_KEYCHAIN_PASSWORD as its inner password, and we invoke
+    #      `security import -P` ourselves.
+    require "tmpdir"
+    Dir.mktmpdir do |tmpdir|
+      sh("git clone -q -b master '#{ENV['MATCH_GIT_URL']}' '#{tmpdir}/signing'")
+      encrypted_p12 = File.join(tmpdir, "signing/certs/developer_id_application/gomoku_cert.p12")
+      plain_p12 = File.join(tmpdir, "gomoku_cert.p12")
+
+      require_relative File.expand_path(
+        Gem::Specification.find_by_name("fastlane").gem_dir +
+        "/match/lib/match/encryption/encryption"
+      )
+      Match::Encryption::MatchFileEncryption.new.decrypt(
+        file_path: encrypted_p12,
+        password: ENV["MATCH_PASSWORD"],
+        output_path: plain_p12
+      )
+
+      keychain_path = "#{ENV['HOME']}/Library/Keychains/#{MACOS_KEYCHAIN_NAME}-db"
+      p12_pw = ENV["MATCH_KEYCHAIN_PASSWORD"]
+      sh("security import '#{plain_p12}' -k '#{keychain_path}' " \
+         "-P '#{p12_pw}' -T /usr/bin/codesign -T /usr/bin/security " \
+         "-T /usr/bin/productbuild -T /usr/bin/productsign")
+      sh("security set-key-partition-list " \
+         "-S 'apple-tool:,apple:,codesign:' " \
+         "-s -k '#{ENV['MATCH_KEYCHAIN_PASSWORD']}' '#{keychain_path}' 1>/dev/null")
+    end
 
     app_path = ENV.fetch("GOMOKU_APP_PATH", "build/Gomoku.app")
     entitlements = File.expand_path("entitlements-macos.plist", __dir__)
