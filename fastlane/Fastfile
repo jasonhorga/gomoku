@@ -262,8 +262,9 @@ platform :mac do
     entitlements = File.expand_path("entitlements-macos.plist", __dir__)
     team_id = ENV.fetch("BETA_DEVELOPMENT_TEAM", "6HB84897DJ")
 
-    # Find the Developer ID Application identity installed by match
-    identity_line = sh("security find-identity -v -p codesigning #{MACOS_KEYCHAIN_NAME}.keychain | grep 'Developer ID Application' | head -1 || true", log: false).strip
+    # Find the Developer ID Application identity installed by the manual import above
+    keychain_path = "#{ENV['HOME']}/Library/Keychains/#{MACOS_KEYCHAIN_NAME}-db"
+    identity_line = sh("security find-identity -v -p codesigning '#{keychain_path}' | grep 'Developer ID Application' | head -1 || true", log: false).strip
     UI.user_error!("No Developer ID Application identity found in keychain") if identity_line.empty?
     identity = identity_line.match(/"([^"]+)"/)[1]
     UI.message("Signing identity: #{identity}")
