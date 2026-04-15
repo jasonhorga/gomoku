@@ -153,7 +153,7 @@ platform :ios do
   end
 end
 
-MACOS_BUNDLE_ID = "com.gomoku.game"
+MACOS_BUNDLE_ID = "com.jasonhorga.gomoku"
 MACOS_KEYCHAIN_NAME = "gomoku-macos-signing"
 
 platform :mac do
