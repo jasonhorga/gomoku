@@ -22,21 +22,19 @@ python3 -c "import onnxruntime" 2>/dev/null || { echo "Run: pip install onnxrunt
 python3 -c "import PyInstaller" 2>/dev/null || { echo "Run: pip install pyinstaller"; exit 1; }
 
 MODEL="data/weights/model.onnx"
+# Fall back to best_model.onnx (the production model checked into git)
+if [ ! -f "$MODEL" ] && [ -f "data/weights/best_model.onnx" ]; then
+    cp data/weights/best_model.onnx "$MODEL"
+    echo "  Copied best_model.onnx → model.onnx"
+fi
 if [ ! -f "$MODEL" ]; then
-    echo "No model.onnx found. Export first:"
+    echo "No model.onnx or best_model.onnx found. Export first:"
     echo "  python export_onnx.py data/weights/gen_XXX.pt"
     exit 1
 fi
 
-pyinstaller \
-    --onefile \
-    --name gomoku_ai_server \
-    --add-data "protocol.py:." \
-    --add-data "$MODEL:." \
-    --hidden-import onnxruntime \
-    --clean \
-    --noconfirm \
-    onnx_server.py
+# Use the spec file as single source of truth (bundles ai/ package for MCTS)
+pyinstaller --clean --noconfirm gomoku_ai_server.spec
 
 echo ""
 echo "=== Done ==="

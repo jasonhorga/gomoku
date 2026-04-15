@@ -19,6 +19,8 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from protocol import encode, decode_from_buffer
+from ai.mcts_engine import MCTSEngine
+from ai.game_logic import GameLogic
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -88,6 +90,18 @@ def _make_pattern_planes(board, current_player):
             if opp_t["open_four"]: planes[4, r, c] = 1.0
             if opp_t["open_three"]: planes[5, r, c] = 1.0
     return planes
+
+
+class OnnxModelAdapter:
+    """Adapts OnnxModel(board, current_player, last_move) to the interface
+    MCTSEngine expects: nn_model.predict(game: GameLogic) -> (policy[225], value)."""
+
+    def __init__(self, onnx_model):
+        self._m = onnx_model
+
+    def predict(self, game):
+        last_move = game.move_history[-1] if game.move_history else None
+        return self._m.predict(game.board, game.current_player, last_move)
 
 
 class OnnxModel:
@@ -165,9 +179,20 @@ def get_nearby_moves(board, radius=2):
     return list(candidates)
 
 
+def choose_move_mcts(engine: MCTSEngine, board: np.ndarray, current_player: int,
+                     last_move=None):
+    """MCTS + CNN move selection (production path)."""
+    game = GameLogic()
+    game.board = np.asarray(board, dtype=np.int8).copy()
+    game.current_player = current_player
+    game.move_history = [tuple(last_move)] if last_move is not None else []
+    row, col = engine.choose_move(game)
+    return row, col, 0.0
+
+
 def choose_move(model: OnnxModel, board: np.ndarray, current_player: int,
                 last_move=None):
-    """Simple policy-guided move selection."""
+    """Legacy pure-CNN move selection (no search) — kept for fallback/debugging."""
     candidates = get_nearby_moves(board, 2)
     opponent = WHITE if current_player == BLACK else BLACK
 
@@ -204,8 +229,19 @@ def choose_move(model: OnnxModel, board: np.ndarray, current_player: int,
 
 
 class OnnxServer:
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, simulations: int = 80):
         self.model = OnnxModel(model_path)
+        self.adapter = OnnxModelAdapter(self.model)
+        self.engine = MCTSEngine(
+            simulations=simulations,
+            nn_model=self.adapter,
+            use_pattern_prior=True,   # hybrid: CNN × pattern priors
+            cnn_prior_weight=0.5,     # 50/50 blend (calibrated during training)
+            dirichlet_alpha=0.0,      # eval mode: no exploration noise
+            vcf_depth=10,             # tactical shortcut
+        )
+        self.simulations = simulations
+        logger.info(f"MCTS engine ready: {simulations} sims/move, hybrid mode")
 
     async def handle_client(self, reader, writer):
         addr = writer.get_extra_info('peername')
@@ -245,9 +281,9 @@ class OnnxServer:
                 if isinstance(lm, (list, tuple)) and len(lm) == 2:
                     last_move = (int(lm[0]), int(lm[1]))
             t0 = time.time()
-            row, col, value = choose_move(self.model, board, current, last_move=last_move)
+            row, col, value = choose_move_mcts(self.engine, board, current, last_move=last_move)
             elapsed = time.time() - t0
-            logger.info(f"Move: ({row},{col}) eval={value:.3f} time={elapsed:.3f}s")
+            logger.info(f"Move: ({row},{col}) eval={value:.3f} time={elapsed:.3f}s sims={self.simulations}")
             return {"row": row, "col": col, "eval": round(value, 4), "think_time": round(elapsed, 3)}
         elif cmd == 'status':
             return {"cmd": "status_reply", "ready": True, "backend": "onnx"}
@@ -261,17 +297,22 @@ class OnnxServer:
 
 
 def find_model():
-    """Find model.onnx in standard locations."""
+    """Find model.onnx (or best_model.onnx) in standard locations."""
+    here = os.path.dirname(__file__)
     search = [
-        os.path.join(os.path.dirname(__file__), 'data', 'weights', 'model.onnx'),
-        os.path.join(os.path.dirname(__file__), 'model.onnx'),
+        os.path.join(here, 'data', 'weights', 'model.onnx'),
+        os.path.join(here, 'data', 'weights', 'best_model.onnx'),
+        os.path.join(here, 'model.onnx'),
+        os.path.join(here, 'best_model.onnx'),
         'model.onnx',
+        'best_model.onnx',
     ]
     # Also check next to executable (for PyInstaller bundle)
     if getattr(sys, 'frozen', False):
         base = os.path.dirname(sys.executable)
-        search.insert(0, os.path.join(base, 'model.onnx'))
-        search.insert(0, os.path.join(base, 'data', 'weights', 'model.onnx'))
+        for name in ('model.onnx', 'best_model.onnx'):
+            search.insert(0, os.path.join(base, name))
+            search.insert(0, os.path.join(base, 'data', 'weights', name))
 
     for p in search:
         if os.path.exists(p):
@@ -283,6 +324,9 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default=None, help='Path to .onnx model')
+    parser.add_argument('--sims', type=int,
+                        default=int(os.environ.get('GOMOKU_SIMS', '80')),
+                        help='MCTS simulations per move (default 80, env: GOMOKU_SIMS)')
     args = parser.parse_args()
 
     model_path = args.model or find_model()
@@ -290,7 +334,7 @@ def main():
         logger.error("No model.onnx found! Train first, then run export_onnx.py")
         sys.exit(1)
 
-    server = OnnxServer(model_path)
+    server = OnnxServer(model_path, simulations=args.sims)
     asyncio.run(server.run())
 
 

@@ -14,7 +14,7 @@ func _init() -> void:
 		_use_server = true
 	else:
 		# Fallback: MCTS (same as Level 5)
-		_fallback_mcts = load("res://scripts/ai/ai_mcts.gd").new(3000)
+		_fallback_mcts = load("res://scripts/ai/ai_mcts.gd").new(2000)
 
 
 func choose_move(board: Array, current_player: int, move_history: Array) -> Vector2i:
@@ -31,7 +31,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 			return Vector2i(int(response.get("row", 7)), int(response.get("col", 7)))
 		# Server failed — switch to fallback
 		_use_server = false
-		_fallback_mcts = load("res://scripts/ai/ai_mcts.gd").new(3000)
+		_fallback_mcts = load("res://scripts/ai/ai_mcts.gd").new(2000)
 
 	# Fallback: MCTS
 	return _fallback_mcts.choose_move(board, current_player, move_history)

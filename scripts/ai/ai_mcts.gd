@@ -2,12 +2,12 @@ extends "res://scripts/ai/ai_engine.gd"
 
 const MCTSNode = preload("res://scripts/ai/mcts_node.gd")
 
-var simulation_count: int = 5000
+var simulation_count: int = 1500
 var exploration_constant: float = 1.414
 var evaluator = preload("res://scripts/ai/pattern_evaluator.gd").new()
 
 
-func _init(sims: int = 5000) -> void:
+func _init(sims: int = 1500) -> void:
 	simulation_count = sims
 
 
@@ -82,7 +82,7 @@ func _simulate(board: Array, current_player: int) -> int:
 	# Semi-random rollout with heuristic guidance
 	var player: int = current_player
 
-	for _step in range(100):  # max 100 moves in rollout
+	for _step in range(40):  # max 40 moves in rollout
 		var candidates = _get_candidate_moves(board)
 		if candidates.is_empty():
 			return EMPTY  # draw

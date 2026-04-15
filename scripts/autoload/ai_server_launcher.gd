@@ -26,11 +26,17 @@ func _ready() -> void:
 	_pid = OS.create_process(server_path, [], false)
 	if _pid > 0:
 		print("[AIServer] Launched (PID %d)" % _pid)
-		# Give it a moment to start
-		await get_tree().create_timer(1.5).timeout
-		server_available = _check_port_open()
-		if server_available:
-			print("[AIServer] Ready")
+		# Poll for readiness up to 15s (pyinstaller cold-start + onnxruntime
+		# load can take 4-5s on first launch, longer on slower machines).
+		var start_ts := Time.get_ticks_msec()
+		var deadline := start_ts + 15000
+		while Time.get_ticks_msec() < deadline:
+			if _check_port_open():
+				server_available = true
+				print("[AIServer] Ready in %dms" % (Time.get_ticks_msec() - start_ts))
+				return
+			await get_tree().create_timer(0.5).timeout
+		print("[AIServer] Timeout after 15s — Level 6 will use MCTS fallback")
 	else:
 		print("[AIServer] Failed to launch")
 
