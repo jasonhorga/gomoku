@@ -28,13 +28,42 @@ echo "=== Packaging Gomoku.app ==="
 TMPDIR=$(mktemp -d)
 unzip -q "$APP_ZIP" -d "$TMPDIR"
 
+# Find the .app bundle Godot exported (name comes from config/name,
+# which may include Chinese chars/spaces) and normalize to Gomoku.app
+EXPORTED_APP=$(ls -d "$TMPDIR"/*.app | head -1)
+if [ -z "$EXPORTED_APP" ]; then
+    echo "No .app found in $APP_ZIP"; exit 1
+fi
+if [ "$(basename "$EXPORTED_APP")" != "Gomoku.app" ]; then
+    mv "$EXPORTED_APP" "$TMPDIR/Gomoku.app"
+fi
+APP="$TMPDIR/Gomoku.app"
+
+# Godot names the main binary after config/name too — normalize to "Gomoku"
+MAIN_BIN=$(ls "$APP/Contents/MacOS/" | grep -v '^gomoku_ai_server$\|^model\.onnx$' | head -1)
+if [ -n "$MAIN_BIN" ] && [ "$MAIN_BIN" != "Gomoku" ]; then
+    mv "$APP/Contents/MacOS/$MAIN_BIN" "$APP/Contents/MacOS/Gomoku"
+fi
+
+# Also normalize the .pck name and CFBundleExecutable reference
+MAIN_PCK=$(ls "$APP/Contents/Resources/" | grep '\.pck$' | head -1)
+if [ -n "$MAIN_PCK" ] && [ "$MAIN_PCK" != "Gomoku.pck" ]; then
+    mv "$APP/Contents/Resources/$MAIN_PCK" "$APP/Contents/Resources/Gomoku.pck"
+fi
+# Patch Info.plist CFBundleExecutable + CFBundleName + CFBundleDisplayName
+if command -v plutil >/dev/null 2>&1; then
+    plutil -replace CFBundleExecutable -string "Gomoku" "$APP/Contents/Info.plist"
+    plutil -replace CFBundleName -string "Gomoku" "$APP/Contents/Info.plist"
+    plutil -replace CFBundleDisplayName -string "五子棋 Gomoku" "$APP/Contents/Info.plist"
+fi
+
 # Embed AI server
-cp "$SERVER" "$TMPDIR/Gomoku.app/Contents/MacOS/gomoku_ai_server"
-chmod +x "$TMPDIR/Gomoku.app/Contents/MacOS/gomoku_ai_server"
+cp "$SERVER" "$APP/Contents/MacOS/gomoku_ai_server"
+chmod +x "$APP/Contents/MacOS/gomoku_ai_server"
 
 # Embed model if exists
 if [ -f "$ONNX_MODEL" ]; then
-    cp "$ONNX_MODEL" "$TMPDIR/Gomoku.app/Contents/MacOS/model.onnx"
+    cp "$ONNX_MODEL" "$APP/Contents/MacOS/model.onnx"
     echo "  Embedded model.onnx"
 fi
 
