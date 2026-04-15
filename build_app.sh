@@ -61,10 +61,10 @@ fi
 cp "$SERVER" "$APP/Contents/MacOS/gomoku_ai_server"
 chmod +x "$APP/Contents/MacOS/gomoku_ai_server"
 
-# Embed model if exists
+# Embed model in Resources/ (not MacOS/ — codesign rejects non-Mach-O files there)
 if [ -f "$ONNX_MODEL" ]; then
-    cp "$ONNX_MODEL" "$APP/Contents/MacOS/model.onnx"
-    echo "  Embedded model.onnx"
+    cp "$ONNX_MODEL" "$APP/Contents/Resources/model.onnx"
+    echo "  Embedded model.onnx (Resources/)"
 fi
 
 # Re-package

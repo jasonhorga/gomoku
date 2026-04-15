@@ -307,12 +307,15 @@ def find_model():
         'model.onnx',
         'best_model.onnx',
     ]
-    # Also check next to executable (for PyInstaller bundle)
+    # Also check next to executable (for PyInstaller bundle) and sibling
+    # Resources/ directory when bundled inside a .app on macOS
     if getattr(sys, 'frozen', False):
         base = os.path.dirname(sys.executable)
         for name in ('model.onnx', 'best_model.onnx'):
             search.insert(0, os.path.join(base, name))
             search.insert(0, os.path.join(base, 'data', 'weights', name))
+            # macOS .app: Contents/MacOS/<binary> + Contents/Resources/model.onnx
+            search.insert(0, os.path.join(base, '..', 'Resources', name))
 
     for p in search:
         if os.path.exists(p):
