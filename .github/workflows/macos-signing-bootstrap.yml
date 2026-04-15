@@ -1,0 +1,62 @@
+name: macOS Signing Bootstrap (one-time)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    name: Bootstrap macOS Developer ID cert
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.x
+        run: |
+          set -e
+          PREFERRED_XCODE="/Applications/Xcode_26.2.app"
+          FOUND_XCODE=""
+          if [ -d "$PREFERRED_XCODE" ]; then
+            FOUND_XCODE="$PREFERRED_XCODE"
+          else
+            MATCHES=$(ls -d /Applications/Xcode_26*.app 2>/dev/null || true)
+            if [ -z "$MATCHES" ]; then
+              echo "❌ No Xcode 26.x found"; exit 1
+            fi
+            FOUND_XCODE=$(echo "$MATCHES" | sort -V | tail -n1)
+          fi
+          sudo xcode-select -s "$FOUND_XCODE"
+          xcodebuild -version
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Validate bootstrap secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: |
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY MATCH_GIT_URL MATCH_PASSWORD MATCH_KEYCHAIN_PASSWORD; do
+            eval val=\$$v
+            test -n "$val" || (echo "❌ Missing $v" && exit 1)
+          done
+          echo "✅ bootstrap secrets ready"
+
+      - name: Run fastlane macos_bootstrap_signing
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: bundle exec fastlane mac macos_bootstrap_signing

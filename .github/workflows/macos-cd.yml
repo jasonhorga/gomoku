@@ -1,0 +1,151 @@
+name: CD — macOS (signed + notarized)
+
+on:
+  push:
+    tags:
+      - 'macos-v*'
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes for this build'
+        required: false
+        default: 'Manual build'
+
+concurrency:
+  group: macos-cd
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.2.2"
+
+jobs:
+  build:
+    name: Build, sign and notarize Gomoku.app
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.x
+        run: |
+          set -e
+          PREFERRED_XCODE="/Applications/Xcode_26.2.app"
+          FOUND_XCODE=""
+          if [ -d "$PREFERRED_XCODE" ]; then
+            FOUND_XCODE="$PREFERRED_XCODE"
+          else
+            MATCHES=$(ls -d /Applications/Xcode_26*.app 2>/dev/null || true)
+            if [ -z "$MATCHES" ]; then
+              echo "❌ No Xcode 26.x found"; exit 1
+            fi
+            FOUND_XCODE=$(echo "$MATCHES" | sort -V | tail -n1)
+          fi
+          sudo xcode-select -s "$FOUND_XCODE"
+          xcodebuild -version
+
+      - name: Cache Godot + export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-macos-v1
+
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip
+          chmod +x "Godot.app/Contents/MacOS/Godot"
+          ln -sf "$HOME/godot/Godot.app/Contents/MacOS/Godot" "$HOME/godot/godot"
+          ./godot --version
+
+          curl -fsSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          unzip -q -o templates.tpz -d /tmp/godot_templates
+          mv /tmp/godot_templates/templates/* "$TEMPLATE_DIR/"
+
+      - name: Add Godot to PATH
+        run: echo "$HOME/godot" >> "$GITHUB_PATH"
+
+      - name: Godot import assets
+        run: godot --headless --import --quit || true
+
+      - name: Export macOS .app (native, no config errors)
+        run: |
+          set -e
+          mkdir -p build
+          godot --headless --export-release "macOS" build/gomoku_macos.zip
+          ls -la build/gomoku_macos.zip
+
+      - name: Set up Python for AI server build
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build AI server (pyinstaller)
+        run: |
+          set -e
+          cd ai_server
+          pip install --quiet pyinstaller onnxruntime numpy
+          pyinstaller gomoku_ai_server.spec
+          ls -la dist/gomoku_ai_server
+          file dist/gomoku_ai_server
+
+      - name: Ensure ONNX model is present
+        run: |
+          set -e
+          if [ ! -f ai_server/data/weights/model.onnx ] && [ -f ai_server/data/weights/best_model.onnx ]; then
+            cp ai_server/data/weights/best_model.onnx ai_server/data/weights/model.onnx
+          fi
+          ls -la ai_server/data/weights/model.onnx
+
+      - name: Assemble Gomoku.app (build_app.sh)
+        run: |
+          set -e
+          ./build_app.sh
+          # Extract for signing
+          rm -rf build/Gomoku.app
+          unzip -q build/Gomoku_final.zip -d build/
+          ls -la build/Gomoku.app/Contents/MacOS/
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Validate signing secrets
+        env:
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: |
+          test -n "$MATCH_GIT_URL" || (echo "❌ Missing MATCH_GIT_URL" && exit 1)
+          test -n "$MATCH_PASSWORD" || (echo "❌ Missing MATCH_PASSWORD" && exit 1)
+          test -n "$MATCH_KEYCHAIN_PASSWORD" || (echo "❌ Missing MATCH_KEYCHAIN_PASSWORD" && exit 1)
+
+      - name: Run fastlane macos_beta (sign + notarize + staple)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+          GOMOKU_APP_PATH: build/Gomoku.app
+        run: bundle exec fastlane mac macos_beta
+
+      - name: Upload signed .app zip
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gomoku-macos-${{ github.ref_name }}
+          path: build/Gomoku_signed.zip
+          retention-days: 90
