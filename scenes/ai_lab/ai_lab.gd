@@ -5,7 +5,7 @@ const _GameRecord = preload("res://scripts/data/game_record.gd")
 const _WeightTuner = preload("res://scripts/data/weight_tuner.gd")
 const _PatternEval = preload("res://scripts/ai/pattern_evaluator.gd")
 
-const LEVEL_NAMES: Array[String] = ["L1 Random", "L2 Heuristic", "L3 Minimax", "L4 Minimax+", "L5 MCTS"]
+const LEVEL_NAMES: Array[String] = ["L1 Random", "L2 Heuristic", "L3 Minimax", "L4 Minimax+", "L5 MCTS", "L6 Neural"]
 const SPEED_NAMES: Array[String] = ["Instant", "Fast", "Normal", "Slow"]
 const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 
@@ -52,7 +52,8 @@ func _create_engine(level_idx: int):
 		1: return load("res://scripts/ai/ai_heuristic.gd").new()
 		2: return load("res://scripts/ai/ai_minimax.gd").new(2)
 		3: return load("res://scripts/ai/ai_minimax.gd").new(4)
-		4: return load("res://scripts/ai/ai_mcts.gd").new(1000)
+		4: return load("res://scripts/ai/ai_mcts.gd").new(1500)
+		5: return load("res://scripts/ai/ai_neural.gd").new()
 		_: return load("res://scripts/ai/ai_random.gd").new()
 
 
@@ -86,8 +87,10 @@ func _run_next_batch_game() -> void:
 			_GameRecord.list_records().size()]
 		return
 
-	var engine_b = _create_engine(train_level.selected)
-	var engine_w = _create_engine(train_level.selected)
+	# Use black/white level selections so batch mode can compare different levels.
+	# (For self-play / weight training, just set both dropdowns to the same level.)
+	var engine_b = _create_engine(black_level.selected)
+	var engine_w = _create_engine(white_level.selected)
 
 	# Run a headless game using game logic directly
 	var logic = _GameLogic.new()
