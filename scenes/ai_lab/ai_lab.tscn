@@ -138,34 +138,6 @@ autowrap_mode = 2
 [node name="Sep2" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="TrainLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Weight Training"
-
-[node name="TrainButtons" type="HBoxContainer" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="TuneButton" type="Button" parent="VBoxContainer/TrainButtons"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 40)
-theme_override_font_sizes/font_size = 16
-text = "Tune Weights"
-
-[node name="ResetWeightsButton" type="Button" parent="VBoxContainer/TrainButtons"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 40)
-theme_override_font_sizes/font_size = 16
-text = "Reset Defaults"
-
-[node name="Sep3" type="HSeparator" parent="VBoxContainer"]
-layout_mode = 2
-
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2

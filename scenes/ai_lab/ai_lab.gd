@@ -2,8 +2,6 @@ extends Control
 
 const _GameLogic = preload("res://scripts/game_logic.gd")
 const _GameRecord = preload("res://scripts/data/game_record.gd")
-const _WeightTuner = preload("res://scripts/data/weight_tuner.gd")
-const _PatternEval = preload("res://scripts/ai/pattern_evaluator.gd")
 
 const LEVEL_NAMES: Array[String] = ["L1 Random", "L2 Heuristic", "L3 Minimax", "L4 Minimax+", "L5 MCTS", "L6 Neural"]
 const SPEED_NAMES: Array[String] = ["Instant", "Fast", "Normal", "Slow"]
@@ -32,8 +30,6 @@ func _ready() -> void:
 	speed_slider.value_changed.connect(_on_speed_changed)
 	%WatchButton.pressed.connect(_on_watch_pressed)
 	%RunBatchButton.pressed.connect(_on_run_batch_pressed)
-	%TuneButton.pressed.connect(_on_tune_pressed)
-	%ResetWeightsButton.pressed.connect(_on_reset_weights_pressed)
 	%BackButton.pressed.connect(_on_back_pressed)
 
 	_update_stats()
@@ -132,50 +128,6 @@ func _run_next_batch_game() -> void:
 	# Use call_deferred to avoid stack overflow and allow UI updates
 	_run_next_batch_game.call_deferred()
 
-
-func _on_tune_pressed() -> void:
-	var records_paths = _GameRecord.list_records()
-	if records_paths.is_empty():
-		stats_label.text = "No records to tune from!"
-		return
-
-	var records: Array = []
-	for path in records_paths:
-		var r = _GameRecord.load_from_file(path)
-		if r != null:
-			records.append(r)
-
-	if records.is_empty():
-		stats_label.text = "Failed to load records!"
-		return
-
-	var eval = _PatternEval.new()
-	# Try to load existing weights
-	eval.load_weights("user://ai_weights/pattern_weights.json")
-	var old_weights = eval.weights.duplicate()
-
-	var tuner = _WeightTuner.new()
-	var new_weights = tuner.tune_from_records(records, old_weights)
-
-	# Save new weights
-	DirAccess.make_dir_recursive_absolute("user://ai_weights")
-	eval.weights = new_weights
-	eval.save_weights("user://ai_weights/pattern_weights.json")
-
-	# Display changes
-	var changes: String = "Tuned: "
-	for key in new_weights:
-		var diff: float = new_weights[key] - old_weights[key]
-		if absf(diff) > 0.01:
-			changes += "%s:%+.0f " % [key, diff]
-	stats_label.text = changes
-
-
-func _on_reset_weights_pressed() -> void:
-	var eval = _PatternEval.new()
-	DirAccess.make_dir_recursive_absolute("user://ai_weights")
-	eval.save_weights("user://ai_weights/pattern_weights.json")
-	stats_label.text = "Weights reset to defaults"
 
 
 func _update_stats() -> void:
