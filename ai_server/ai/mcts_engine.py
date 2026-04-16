@@ -17,6 +17,7 @@ import numpy as np
 from ai.game_logic import GameLogic, BOARD_SIZE, EMPTY, BLACK, WHITE, DIRECTIONS
 from ai.pattern_eval import score_cell, best_moves_by_score
 from ai.vcf_search import find_vcf
+from ai.vct_search import find_vct
 
 
 class MCTSNode:
@@ -171,6 +172,24 @@ class MCTSEngine:
                 # Play the opponent's VCF starting square to block it.
                 probs = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
                 probs[opp_vcf[0] * BOARD_SIZE + opp_vcf[1]] = 1.0
+                return probs
+
+        # ---- VCT tactical search --------------------------------------
+        # Extends VCF: also searches three-threat sequences (open threes).
+        # Catches double-three forks and multi-step threat combinations
+        # that pure MCTS can't see with limited simulations.
+        if self.vcf_depth > 0:
+            vct_move = find_vct(game.board, player, max_depth=6,
+                                max_branch=self.vcf_branch)
+            if vct_move is not None:
+                probs = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
+                probs[vct_move[0] * BOARD_SIZE + vct_move[1]] = 1.0
+                return probs
+            opp_vct = find_vct(game.board, opponent, max_depth=6,
+                               max_branch=self.vcf_branch)
+            if opp_vct is not None:
+                probs = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
+                probs[opp_vct[0] * BOARD_SIZE + opp_vct[1]] = 1.0
                 return probs
 
         # ---- Compute priors for candidates -----------------------------

@@ -18,6 +18,7 @@ a = Analysis(
         'ai.mcts_engine',
         'ai.pattern_eval',
         'ai.vcf_search',
+        'ai.vct_search',
     ],
     hookspath=[],
     hooksconfig={},
