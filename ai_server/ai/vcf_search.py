@@ -19,7 +19,7 @@ search is fast (~ms).
 """
 
 from ai.game_logic import BOARD_SIZE, EMPTY, BLACK, WHITE, DIRECTIONS
-from ai.pattern_eval import _count_consecutive
+from ai.pattern_eval import _count_consecutive, _scan_line
 
 
 def _makes_five(board, r, c, player):
@@ -35,27 +35,33 @@ def _makes_five(board, r, c, player):
 def _four_info(board, r, c, player):
     """After placing player at (r,c), return info about four-threats created.
 
+    Detects both consecutive AND gapped patterns:
+      - Consecutive four: XXXX with open end(s)
+      - Gapped five: XXX_X or XX_XX etc. (5 stones with 1 gap → must block gap)
+
     Returns (kind, block_cells) where:
       kind: 'five' | 'open_four' | 'half_four' | None
-      block_cells: list of cells opponent could play to stop a five
-                   (length 1 for half_four, 2 for open_four, irrelevant for five)
+      block_cells: cells opponent must play to prevent five
     """
     best_kind = None
     block_cells = []
     for dr, dc in DIRECTIONS:
-        pos_c, pos_o = _count_consecutive(board, r, c, dr, dc, player)
-        neg_c, neg_o = _count_consecutive(board, r, c, -dr, -dc, player)
-        total = 1 + pos_c + neg_c
-        open_ends = pos_o + neg_o
+        pos_con, pos_gap, pos_open, pos_gap_cell = _scan_line(
+            board, r, c, dr, dc, player)
+        neg_con, neg_gap, neg_open, neg_gap_cell = _scan_line(
+            board, r, c, -dr, -dc, player)
+
+        # --- Consecutive patterns (original logic) ---
+        total = 1 + pos_con + neg_con
+        open_ends = pos_open + neg_open
         if total >= 5:
             return 'five', []
         if total == 4:
-            # Collect the block cells: the first empty cell on the open end
             ends = []
-            if pos_o:
-                ends.append((r + (pos_c + 1) * dr, c + (pos_c + 1) * dc))
-            if neg_o:
-                ends.append((r - (neg_c + 1) * dr, c - (neg_c + 1) * dc))
+            if pos_open:
+                ends.append((r + (pos_con + 1) * dr, c + (pos_con + 1) * dc))
+            if neg_open:
+                ends.append((r - (neg_con + 1) * dr, c - (neg_con + 1) * dc))
             if open_ends == 2:
                 if best_kind != 'five':
                     best_kind = 'open_four'
@@ -64,6 +70,23 @@ def _four_info(board, r, c, player):
                 if best_kind not in ('five', 'open_four'):
                     best_kind = 'half_four'
                 block_cells.extend(ends)
+
+        # --- Gapped patterns (split-four detection) ---
+        # 4+ stones across one gap → filling gap makes five → must block.
+        # This is equivalent to a half_four with the gap as the block cell.
+        if pos_gap > 0 and pos_gap_cell is not None:
+            gap_total = 1 + pos_con + neg_con + pos_gap
+            if gap_total >= 4:
+                if best_kind not in ('five', 'open_four'):
+                    best_kind = 'half_four'
+                block_cells.append(pos_gap_cell)
+        if neg_gap > 0 and neg_gap_cell is not None:
+            gap_total = 1 + pos_con + neg_con + neg_gap
+            if gap_total >= 4:
+                if best_kind not in ('five', 'open_four'):
+                    best_kind = 'half_four'
+                block_cells.append(neg_gap_cell)
+
     return best_kind, block_cells
 
 

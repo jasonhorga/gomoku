@@ -47,6 +47,57 @@ def _count_consecutive(board, row, col, dr, dc, player):
     return count, is_open
 
 
+def _scan_line(board, row, col, dr, dc, player):
+    """Scan in one direction, returning consecutive + gap info.
+
+    Returns (consecutive, gap_stones, end_open, gap_cell):
+      consecutive: adjacent same-color stones
+      gap_stones: stones after one empty gap (0 if none)
+      end_open: 1 if end after consecutive is empty
+      gap_cell: (r,c) of the gap, or None
+    """
+    cons = 0
+    r, c = row + dr, col + dc
+    while 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == player:
+        cons += 1
+        r += dr
+        c += dc
+
+    end_open = 0
+    gap_stones = 0
+    gap_cell = None
+
+    if 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == EMPTY:
+        end_open = 1
+        # Look past gap for more stones
+        nr, nc = r + dr, c + dc
+        if (0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE
+                and board[nr][nc] == player):
+            gap_cell = (r, c)
+            while (0 <= nr < BOARD_SIZE and 0 <= nc < BOARD_SIZE
+                    and board[nr][nc] == player):
+                gap_stones += 1
+                nr += dr
+                nc += dc
+
+    return cons, gap_stones, end_open, gap_cell
+
+
+def _gapped_score(total_with_gap, weights=DEFAULT_WEIGHTS):
+    """Score for a gapped pattern (N stones across one gap).
+    Filling the gap creates N consecutive — score by resulting threat.
+    N=4 → fill → five (must block) = half_four.
+    N=3 → fill → four (strong setup) = half_three.
+    """
+    if total_with_gap >= 4:
+        # 4+ stones with gap: fill → five → must block
+        return weights["half_four"]
+    if total_with_gap == 3:
+        # 3 stones with gap: fill → four → strong threat
+        return weights["half_three"]
+    return 0.0
+
+
 def _pattern_score(count, open_ends, weights=DEFAULT_WEIGHTS):
     if count >= 5:
         return weights["five"]
@@ -66,25 +117,30 @@ def _pattern_score(count, open_ends, weights=DEFAULT_WEIGHTS):
 def evaluate_position(board, row, col, player, weights=DEFAULT_WEIGHTS):
     """What patterns would placing 'player' at (row, col) create?
 
-    Sums per-direction pattern scores with a multiplicative bonus when
-    multiple directions are strong (captures double-three / double-four
-    tactical wins). Returns a single float.
+    Considers both consecutive AND gapped patterns (split-three, split-four).
+    Sums per-direction scores with a multiplicative bonus for double threats.
     """
     per_dir = []
     for dr, dc in DIRECTIONS:
-        count = 1  # the stone being placed
-        open_ends = 0
-        pos_c, pos_o = _count_consecutive(board, row, col, dr, dc, player)
-        count += pos_c
-        open_ends += pos_o
-        neg_c, neg_o = _count_consecutive(board, row, col, -dr, -dc, player)
-        count += neg_c
-        open_ends += neg_o
-        per_dir.append(_pattern_score(count, open_ends, weights))
+        pos_con, pos_gap, pos_open, _ = _scan_line(board, row, col, dr, dc, player)
+        neg_con, neg_gap, neg_open, _ = _scan_line(board, row, col, -dr, -dc, player)
+
+        # Consecutive score
+        con_total = 1 + pos_con + neg_con
+        con_score = _pattern_score(con_total, pos_open + neg_open, weights)
+
+        # Gapped scores (gap on positive or negative side)
+        gap_score = 0.0
+        if pos_gap > 0:
+            gap_score = max(gap_score,
+                            _gapped_score(1 + pos_con + neg_con + pos_gap, weights))
+        if neg_gap > 0:
+            gap_score = max(gap_score,
+                            _gapped_score(1 + pos_con + neg_con + neg_gap, weights))
+
+        per_dir.append(max(con_score, gap_score))
 
     total = sum(per_dir)
-    # Double-threat bonus: if the move creates 2+ strong patterns
-    # (open_three or better) across directions, it's tactically winning.
     strong_count = sum(1 for s in per_dir if s >= STRONG_PATTERN_THRESHOLD)
     if strong_count >= 2:
         total *= DOUBLE_THREAT_BONUS
@@ -120,7 +176,7 @@ def score_cell(board, row, col, player, weights=DEFAULT_WEIGHTS):
 
 def detect_threats(board, row, col, player):
     """Return dict of bools: which pattern types would be created
-    by placing 'player' at (row, col). Used for pattern feature planes.
+    by placing 'player' at (row, col). Includes gapped patterns.
     """
     if board[row][col] != EMPTY:
         return None
@@ -133,15 +189,12 @@ def detect_threats(board, row, col, player):
         "half_three": False,
     }
     for dr, dc in DIRECTIONS:
-        count = 1
-        open_ends = 0
-        pos_c, pos_o = _count_consecutive(board, row, col, dr, dc, player)
-        count += pos_c
-        open_ends += pos_o
-        neg_c, neg_o = _count_consecutive(board, row, col, -dr, -dc, player)
-        count += neg_c
-        open_ends += neg_o
+        pos_con, pos_gap, pos_open, _ = _scan_line(board, row, col, dr, dc, player)
+        neg_con, neg_gap, neg_open, _ = _scan_line(board, row, col, -dr, -dc, player)
 
+        # Consecutive patterns
+        count = 1 + pos_con + neg_con
+        open_ends = pos_open + neg_open
         if count >= 5:
             result["five"] = True
         elif count == 4:
@@ -154,6 +207,15 @@ def detect_threats(board, row, col, player):
                 result["open_three"] = True
             elif open_ends == 1:
                 result["half_three"] = True
+
+        # Gapped patterns (split-four, split-three)
+        for gap in (pos_gap, neg_gap):
+            if gap > 0:
+                gap_total = 1 + pos_con + neg_con + gap
+                if gap_total >= 4:
+                    result["half_four"] = True  # fill gap → five
+                elif gap_total == 3:
+                    result["half_three"] = True  # fill gap → four
     return result
 
 
