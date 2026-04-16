@@ -229,7 +229,7 @@ def choose_move(model: OnnxModel, board: np.ndarray, current_player: int,
 
 
 class OnnxServer:
-    def __init__(self, model_path: str, simulations: int = 80):
+    def __init__(self, model_path: str, simulations: int = 200):
         self.model = OnnxModel(model_path)
         self.adapter = OnnxModelAdapter(self.model)
         self.engine = MCTSEngine(
@@ -328,8 +328,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default=None, help='Path to .onnx model')
     parser.add_argument('--sims', type=int,
-                        default=int(os.environ.get('GOMOKU_SIMS', '80')),
-                        help='MCTS simulations per move (default 80, env: GOMOKU_SIMS)')
+                        default=int(os.environ.get('GOMOKU_SIMS', '200')),
+                        help='MCTS simulations per move (default 200, env: GOMOKU_SIMS)')
     args = parser.parse_args()
 
     model_path = args.model or find_model()
