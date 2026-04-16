@@ -6,30 +6,27 @@ var move: Vector2i
 var player: int  # who made this move
 var visits: int = 0
 var wins: float = 0.0
-var untried_moves: Array = []  # Array[Vector2i]
+var prior: float = 0.0  # pattern-based prior probability
 
 
-func _init(p_parent, p_move: Vector2i, p_player: int) -> void:
+func _init(p_parent, p_move: Vector2i, p_player: int, p_prior: float = 0.0) -> void:
 	parent = p_parent
 	move = p_move
 	player = p_player
+	prior = p_prior
 
 
-func ucb1(exploration: float) -> float:
-	if visits == 0:
-		return INF
-	return (wins / visits) + exploration * sqrt(log(parent.visits) / visits)
+func puct(c: float) -> float:
+	# PUCT selection: Q + c * prior * sqrt(parent_visits) / (1 + visits)
+	var q: float = wins / maxf(visits, 1)
+	return q + c * prior * sqrt(float(parent.visits)) / (1.0 + visits)
 
 
-func is_fully_expanded() -> bool:
-	return untried_moves.is_empty()
-
-
-func best_child(exploration: float):
+func best_child(c: float):
 	var best = null
 	var best_val: float = -INF
 	for child in children:
-		var val: float = child.ucb1(exploration)
+		var val: float = child.puct(c)
 		if val > best_val:
 			best_val = val
 			best = child

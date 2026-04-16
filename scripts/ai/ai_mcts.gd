@@ -3,7 +3,7 @@ extends "res://scripts/ai/ai_engine.gd"
 const MCTSNode = preload("res://scripts/ai/mcts_node.gd")
 
 var simulation_count: int = 1500
-var exploration_constant: float = 1.414
+var c_puct: float = 2.5
 var evaluator = preload("res://scripts/ai/pattern_evaluator.gd").new()
 
 
@@ -31,44 +31,41 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 			return pos
 		board[pos.x][pos.y] = EMPTY
 
+	# Create root and expand with pattern priors
 	var root = MCTSNode.new(null, Vector2i(-1, -1), opponent)
-	root.untried_moves = candidates
+	_expand_node(root, board, current_player)
+
+	if root.children.is_empty():
+		return Vector2i(7, 7)
 
 	for _i in range(simulation_count):
-		# Deep copy board for this simulation
 		var sim_board: Array = _copy_board(board)
 		var sim_player: int = current_player
 
-		# 1. Selection
+		# 1. Selection — traverse tree using PUCT
 		var node = root
-		while node.is_fully_expanded() and not node.children.is_empty():
-			node = node.best_child(exploration_constant)
+		while not node.children.is_empty():
+			node = node.best_child(c_puct)
 			sim_board[node.move.x][node.move.y] = sim_player
 			sim_player = BLACK if sim_player == WHITE else WHITE
 
-		# 2. Expansion
-		if not node.untried_moves.is_empty():
-			var move_idx: int = randi() % node.untried_moves.size()
-			var move: Vector2i = node.untried_moves[move_idx]
-			node.untried_moves.remove_at(move_idx)
+		# 2. Evaluate
+		var value: float
+		if node.move != Vector2i(-1, -1) and _check_win(sim_board, node.move.x, node.move.y, node.player):
+			# Terminal: node.player just won
+			value = 1.0 if node.player == current_player else 0.0
+		else:
+			# Expand leaf and evaluate position
+			_expand_node(node, sim_board, sim_player)
+			value = _evaluate_leaf(sim_board, current_player)
 
-			sim_board[move.x][move.y] = sim_player
-			var child = MCTSNode.new(node, move, sim_player)
-			child.untried_moves = _get_candidate_moves(sim_board)
-			node.children.append(child)
-			node = child
-			sim_player = BLACK if sim_player == WHITE else WHITE
-
-		# 3. Simulation (rollout)
-		var result: int = _simulate(sim_board, sim_player)
-
-		# 4. Backpropagation
+		# 3. Backpropagation
 		while node != null:
 			node.visits += 1
-			if result == node.player:
-				node.wins += 1.0
-			elif result == EMPTY:
-				node.wins += 0.5  # draw
+			if node.player == current_player:
+				node.wins += value
+			else:
+				node.wins += 1.0 - value
 			node = node.parent
 
 	# Choose most visited child
@@ -78,54 +75,35 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 	return best.move
 
 
-func _simulate(board: Array, current_player: int) -> int:
-	# Semi-random rollout with heuristic guidance
-	var player: int = current_player
+func _expand_node(node, board: Array, next_player: int) -> void:
+	var candidates = _get_candidate_moves(board)
+	if candidates.is_empty():
+		return
 
-	for _step in range(40):  # max 40 moves in rollout
-		var candidates = _get_candidate_moves(board)
-		if candidates.is_empty():
-			return EMPTY  # draw
-
-		var move: Vector2i = _choose_rollout_move(board, candidates, player)
-		board[move.x][move.y] = player
-
-		if _check_win(board, move.x, move.y, player):
-			return player
-
-		player = BLACK if player == WHITE else WHITE
-
-	return EMPTY  # timeout = draw
-
-
-func _choose_rollout_move(board: Array, candidates: Array, player: int) -> Vector2i:
-	var opponent: int = BLACK if player == WHITE else WHITE
-
-	# Check for immediate win
+	# Score each candidate with pattern evaluator
+	var scores: Array[float] = []
+	var total: float = 0.0
 	for pos in candidates:
-		board[pos.x][pos.y] = player
-		if _check_win(board, pos.x, pos.y, player):
-			board[pos.x][pos.y] = EMPTY
-			return pos
-		board[pos.x][pos.y] = EMPTY
+		var s: float = evaluator.score_cell(board, pos.x, pos.y, next_player) + 1.0
+		scores.append(s)
+		total += s
 
-	# Check for opponent's immediate win (must block)
-	for pos in candidates:
-		board[pos.x][pos.y] = opponent
-		if _check_win(board, pos.x, pos.y, opponent):
-			board[pos.x][pos.y] = EMPTY
-			return pos
-		board[pos.x][pos.y] = EMPTY
+	# Create children with normalized priors
+	for i in range(candidates.size()):
+		var prior: float = scores[i] / total
+		var child = MCTSNode.new(node, candidates[i], next_player, prior)
+		node.children.append(child)
 
-	# Otherwise random
-	return candidates[randi() % candidates.size()]
+
+func _evaluate_leaf(board: Array, player: int) -> float:
+	# Pattern-based position evaluation, mapped to 0-1
+	var score: float = evaluator.evaluate_board(board, player)
+	return (tanh(score / 1000.0) + 1.0) / 2.0
 
 
 func _get_candidate_moves(board: Array) -> Array:
-	# Get empty cells near existing stones
 	var candidates = get_nearby_empty_cells(board, 1)
 	if candidates.size() < 5:
-		# Expand search radius if few candidates
 		candidates = get_nearby_empty_cells(board, 2)
 	return candidates
 
