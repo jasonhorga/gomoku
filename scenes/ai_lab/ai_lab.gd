@@ -14,7 +14,6 @@ const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 @onready var speed_slider: HSlider = %SpeedSlider
 @onready var speed_text: Label = %SpeedText
 @onready var stats_label: Label = %StatsLabel
-@onready var train_level: OptionButton = %TrainLevel
 
 var batch_running: bool = false
 var batch_total: int = 0
@@ -27,10 +26,8 @@ func _ready() -> void:
 	for name in LEVEL_NAMES:
 		black_level.add_item(name)
 		white_level.add_item(name)
-		train_level.add_item(name)
-	black_level.selected = 2  # L3
-	white_level.selected = 2
-	train_level.selected = 2
+	black_level.selected = 3  # L4 Minimax+
+	white_level.selected = 4  # L5 MCTS
 
 	speed_slider.value_changed.connect(_on_speed_changed)
 	%WatchButton.pressed.connect(_on_watch_pressed)
