@@ -127,6 +127,7 @@ platform :ios do
       xcodeproj: XCODE_PROJECT
     )
 
+    profile_name = "match AppStore #{BUNDLE_ID}"
     build_app(
       project: XCODE_PROJECT,
       scheme: SCHEME,
@@ -138,10 +139,15 @@ platform :ios do
       export_options: {
         signingStyle: signing_style.downcase,
         provisioningProfiles: {
-          BUNDLE_ID => "match AppStore #{BUNDLE_ID}"
+          BUNDLE_ID => profile_name
         }
       },
-      xcargs: "CODE_SIGN_STYLE=#{signing_style} DEVELOPMENT_TEAM=#{development_team}"
+      xcargs: [
+        "CODE_SIGN_STYLE=#{signing_style}",
+        "DEVELOPMENT_TEAM=#{development_team}",
+        "PROVISIONING_PROFILE_SPECIFIER=\"#{profile_name}\"",
+        "CODE_SIGN_IDENTITY=\"Apple Distribution\""
+      ].join(" ")
     )
 
     upload_to_testflight(
