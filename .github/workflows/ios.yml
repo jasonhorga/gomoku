@@ -65,7 +65,6 @@ jobs:
           GODOT_URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
           curl -fsSL -o godot.zip "$GODOT_URL"
           unzip -q godot.zip
-          mv "Godot.app" "Godot.app"
           chmod +x "Godot.app/Contents/MacOS/Godot"
           ln -sf "$HOME/godot/Godot.app/Contents/MacOS/Godot" "$HOME/godot/godot"
           ./godot --version
