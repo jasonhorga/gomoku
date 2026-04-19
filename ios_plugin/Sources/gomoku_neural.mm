@@ -1,9 +1,14 @@
 #include "gomoku_neural.h"
 
-// Swift → Obj-C interface header is emitted by swiftc at build time
-// (see build.sh: -emit-objc-header-path). Its contents turn the @objc
-// Swift methods into Obj-C selectors we can call from this .mm file.
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/core/class_db.hpp>
+
+// Swift → Obj-C interface header emitted by swiftc at build time.
+// build.sh writes it alongside libGomokuMLCore.a in the per-arch out dir
+// and passes -I <out_dir> to clang++ so this #import resolves.
 #import "GomokuMLCore-Swift.h"
+
+using namespace godot;
 
 GomokuNeural *GomokuNeural::instance = nullptr;
 
@@ -29,7 +34,7 @@ void GomokuNeural::_bind_methods() {
 			D_METHOD("plugin_version"), &GomokuNeural::plugin_version);
 }
 
-Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i last_move) {
+Vector2i GomokuNeural::get_move(int level, Array /*board*/, int /*player*/, Vector2i /*last_move*/) {
 	GomokuMLCore *core = [[GomokuMLCore alloc] init];
 	CGPoint pt = [core predictWithLevel:(NSInteger)level];
 	return Vector2i((int)pt.x, (int)pt.y);

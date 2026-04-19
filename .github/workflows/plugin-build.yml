@@ -1,9 +1,13 @@
-name: CI — iOS plugin build (Swift + CoreML)
+name: CI — iOS plugin build (GDExtension + Swift)
 
-# Builds the GomokuNeural iOS plugin as an xcframework. Currently returns
-# a hardcoded (7,7) from Swift — no CoreML yet. Successful run proves the
-# Godot ↔ Obj-C++ ↔ Swift toolchain, after which we layer CoreML + the
-# ported MCTS in subsequent phases.
+# Builds the GomokuNeural GDExtension as xcframework. Uses godot-cpp
+# (not raw godot source) to sidestep the generated-header dependency
+# chain. Swift sources compile separately via swiftc then combine with
+# the C++/Obj-C++ pieces via libtool.
+#
+# Currently returns a hardcoded (7,7) from Swift — no CoreML yet. A
+# green CI proves the full Godot ↔ GDExtension ↔ Swift toolchain. CoreML
+# loading + the ported MCTS are layered on top in subsequent phases.
 
 on:
   push:
@@ -18,11 +22,16 @@ concurrency:
   group: plugin-build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pin godot-cpp to a tag that matches our Godot 4.5.1 runtime. The
+  # godot-cpp 4.5 branch line tracks Godot 4.5 and is the natural pair.
+  GODOT_CPP_REF: "godot-4.5"
+
 jobs:
   build:
     name: Build xcframework (device + simulator)
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -46,23 +55,34 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Cache Godot source (headers-only usage)
-        id: cache-godot-src
+      - name: Set up Python 3.11 (for SCons)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SCons
+        run: python3 -m pip install --upgrade pip scons
+
+      - name: Cache godot-cpp (source + built libs)
+        id: cache-godot-cpp
         uses: actions/cache@v4
         with:
-          path: ios_plugin/godot
-          key: godot-src-4.5.1-stable-v1
+          path: |
+            ios_plugin/godot-cpp
+          key: godot-cpp-${{ env.GODOT_CPP_REF }}-ios-v2
 
-      - name: Clone Godot source (shallow)
-        if: steps.cache-godot-src.outputs.cache-hit != 'true'
+      - name: Clone godot-cpp
+        if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
         run: |
           set -e
           cd ios_plugin
-          git clone --depth=1 --branch=4.5.1-stable \
-            https://github.com/godotengine/godot.git godot
-          du -sh godot
+          git clone --depth=1 --branch="${GODOT_CPP_REF}" \
+            https://github.com/godotengine/godot-cpp.git godot-cpp
+          cd godot-cpp
+          git submodule update --init --recursive --depth=1 || true
+          du -sh .
 
-      - name: Build xcframework
+      - name: Build plugin xcframework
         run: |
           set -e
           cd ios_plugin
@@ -75,6 +95,7 @@ jobs:
         with:
           name: gomoku_neural_plugin
           path: |
-            ios_plugin/build/gomoku_neural.xcframework
-            ios_plugin/build/gomoku_neural.gdip
+            ios_plugin/build/libgomoku_neural.ios.template_release.xcframework
+            ios_plugin/build/libgodot-cpp.ios.template_release.xcframework
+            ios_plugin/build/gomoku_neural.gdextension
           retention-days: 30

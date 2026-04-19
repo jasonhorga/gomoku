@@ -1,19 +1,20 @@
 #ifndef GOMOKU_NEURAL_H
 #define GOMOKU_NEURAL_H
 
-#include "core/version.h"
+#include <godot_cpp/classes/object.hpp>
+#include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/vector2i.hpp>
 
-#if VERSION_MAJOR == 4
-#include "core/object/class_db.h"
-#else
-#error "GomokuNeural plugin requires Godot 4.x headers"
-#endif
+namespace godot {
 
-// GDCLASS subclass exposed to GDScript as `Engine.get_singleton("GomokuNeural")`.
-// Thin Obj-C++ wrapper over the Swift core; all ML logic lives in Swift.
+// GDExtension-exposed class. GDScript accesses it via
+// `Engine.get_singleton("GomokuNeural")`.
+//
+// All ML logic lives in Swift (GomokuMLCore.swift); this class is a
+// thin Obj-C++ bridge — hence gomoku_neural.mm not .cpp.
 class GomokuNeural : public Object {
-
-	GDCLASS(GomokuNeural, Object);
+	GDCLASS(GomokuNeural, Object)
 
 	static GomokuNeural *instance;
 
@@ -26,10 +27,12 @@ public:
 	GomokuNeural();
 	~GomokuNeural();
 
-	// P2b hello-world API — returns (7,7) via Swift, ignoring inputs.
-	// Will grow into the full L5/L6 interface in P2f.
+	// P2b hello API: ignores inputs, returns hardcoded (7, 7) via Swift.
+	// Grows into the full L5/L6 surface in P2f.
 	Vector2i get_move(int level, Array board, int player, Vector2i last_move);
 	String plugin_version();
 };
+
+} // namespace godot
 
 #endif // GOMOKU_NEURAL_H
