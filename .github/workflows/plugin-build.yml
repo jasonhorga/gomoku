@@ -23,9 +23,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Pin godot-cpp to a tag that matches our Godot 4.5.1 runtime. The
-  # godot-cpp 4.5 branch line tracks Godot 4.5 and is the natural pair.
-  GODOT_CPP_REF: "godot-4.5"
+  # Pin godot-cpp to the 4.5 branch line; it tracks ongoing fixes for
+  # Godot 4.5.x releases (our runtime is 4.5.1). Tags like
+  # godot-4.5-stable pin to the 4.5.0 release — we want the branch.
+  GODOT_CPP_REF: "4.5"
 
 jobs:
   build:
