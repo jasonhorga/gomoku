@@ -49,6 +49,21 @@ VGEN
 	echo "Wrote stub version_generated.gen.h"
 fi
 
+# disabled_classes.gen.h is emitted by SCons when build flags disable
+# specific engine classes. For a plugin build nothing is disabled, so
+# an empty file is correct.
+if [ ! -f "$GODOT_DIR/core/disabled_classes.gen.h" ]; then
+	: > "$GODOT_DIR/core/disabled_classes.gen.h"
+	echo "Wrote empty stub disabled_classes.gen.h"
+fi
+
+# version_hash.gen.cpp defines two extern symbols used by core/version.h.
+# We're not linking against godot's cpp files — those are only resolved
+# at final iOS app link time — so our static lib just needs the header
+# side to parse. The header only *declares* extern consts, so no stub
+# needed for the header form. If a future step expects the symbol at
+# link time we'll add a small version_hash.cpp to our own sources.
+
 mkdir -p "$OUTPUT_DIR"
 
 # Compile both device + simulator slices. Godot iOS export refuses
