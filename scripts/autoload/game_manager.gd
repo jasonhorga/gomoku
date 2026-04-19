@@ -34,8 +34,34 @@ func _smoke_test_plugin() -> void:
 		return
 	var plugin = Engine.get_singleton("GomokuNeural")
 	var version: String = plugin.plugin_version()
-	var move: Vector2i = plugin.get_move(6, [], 1, Vector2i(-1, -1))
-	Log.info("Plugin", "GomokuNeural loaded: %s, test move=(%d,%d)" % [version, move.x, move.y])
+
+	# Construct a small handcrafted board so the plugin exercises real
+	# pattern logic instead of the empty-board fallback.
+	# Black has a horizontal run at row 7 cols 7-8; white blocks at
+	# (7,6). Strong pattern candidates for black should be (7,5)
+	# blocker or (7,9) extension. For white it'd be (7,9) block.
+	var test_board: Array = []
+	for _r in range(15):
+		var row: Array = []
+		for _c in range(15):
+			row.append(0)
+		test_board.append(row)
+	test_board[7][7] = 1  # BLACK
+	test_board[7][8] = 1
+	test_board[7][6] = 2  # WHITE (blocker)
+
+	var t0_us: int = Time.get_ticks_usec()
+	var black_move: Vector2i = plugin.get_move(5, test_board, 1, Vector2i(7, 8))
+	var dt_black_us: int = Time.get_ticks_usec() - t0_us
+
+	var t1_us: int = Time.get_ticks_usec()
+	var white_move: Vector2i = plugin.get_move(5, test_board, 2, Vector2i(7, 8))
+	var dt_white_us: int = Time.get_ticks_usec() - t1_us
+
+	Log.info("Plugin",
+		"%s; black→(%d,%d) in %dus; white→(%d,%d) in %dus"
+		% [version, black_move.x, black_move.y, dt_black_us,
+			white_move.x, white_move.y, dt_white_us])
 
 
 # ---- Setup methods (call before entering game scene) ----

@@ -34,9 +34,26 @@ void GomokuNeural::_bind_methods() {
 			D_METHOD("plugin_version"), &GomokuNeural::plugin_version);
 }
 
-Vector2i GomokuNeural::get_move(int level, Array /*board*/, int /*player*/, Vector2i /*last_move*/) {
+Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i /*last_move*/) {
+	// Godot Array of Arrays → NSArray of NSArray of NSNumber so the
+	// Swift @objc method can consume it directly. 15×15 board has 225
+	// ints — trivial allocation.
+	NSMutableArray *ns_board = [NSMutableArray arrayWithCapacity:15];
+	for (int r = 0; r < 15; r++) {
+		NSMutableArray *ns_row = [NSMutableArray arrayWithCapacity:15];
+		Variant vrow = r < (int)board.size() ? board[r] : Variant();
+		Array row = vrow.operator Array();
+		for (int c = 0; c < 15; c++) {
+			int v = c < (int)row.size() ? (int)row[c] : 0;
+			[ns_row addObject:@(v)];
+		}
+		[ns_board addObject:ns_row];
+	}
+
 	GomokuMLCore *core = [[GomokuMLCore alloc] init];
-	CGPoint pt = [core predictWithLevel:(NSInteger)level];
+	CGPoint pt = [core chooseMoveWithLevel:(NSInteger)level
+	                                  board:ns_board
+	                                 player:(NSInteger)player];
 	return Vector2i((int)pt.x, (int)pt.y);
 }
 
