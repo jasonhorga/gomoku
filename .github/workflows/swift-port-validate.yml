@@ -1,0 +1,62 @@
+name: CI — Swift port validation (diff vs Python)
+
+# Builds DiffTestCLI (Swift) from the ported core modules and runs the
+# Python ground-truth side-by-side on random positions. Fails if any
+# operation diverges. Per advisor: every ported function gets a
+# differential test BEFORE layering the next module on top, so bugs
+# stay isolated instead of aggregating into MCTS-level mysteries.
+
+on:
+  push:
+    branches:
+      - swift-ml-plugin
+    paths:
+      - 'ios_plugin/Sources/GameLogic.swift'
+      - 'ios_plugin/Sources/PatternEval.swift'
+      - 'ios_plugin/Sources/VCFSearch.swift'
+      - 'ios_plugin/Sources/VCTSearch.swift'
+      - 'ios_plugin/Sources/MCTSEngine.swift'
+      - 'ios_plugin/tests/**'
+      - 'ai_server/ai/game_logic.py'
+      - 'ai_server/ai/pattern_eval.py'
+      - 'ai_server/ai/vcf_search.py'
+      - 'ai_server/ai/vct_search.py'
+      - '.github/workflows/swift-port-validate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: swift-port-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diff-test:
+    name: Python ↔ Swift differential tests
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: python3 -m pip install --upgrade pip numpy
+
+      - name: Build Swift DiffTestCLI
+        run: |
+          set -e
+          cd ios_plugin/tests
+          chmod +x build_cli.sh
+          ./build_cli.sh
+
+      - name: Run Python ↔ Swift diff tests
+        run: |
+          set -e
+          cd ios_plugin/tests
+          python3 run_diff_tests.py --cases 100 --seed 42

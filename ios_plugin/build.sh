@@ -73,6 +73,9 @@ build_slice() {
 	# simulator slice is Apple Silicon only — fine for our use).
 
 	# Phase 2: Swift → static lib + ObjC interface header.
+	# All .swift files in Sources/ compile into a single GomokuMLCore
+	# module; pure-Swift ones (GameLogic.swift et al) stay private —
+	# only @objc-annotated ones show up in GomokuMLCore-Swift.h.
 	xcrun swiftc \
 		-target "$target" \
 		-sdk "$sdk_path" \
@@ -85,7 +88,8 @@ build_slice() {
 		-parse-as-library \
 		-O \
 		-o "$slice/libGomokuMLCore.a" \
-		Sources/GomokuMLCore.swift
+		Sources/GomokuMLCore.swift \
+		Sources/GameLogic.swift
 
 	# Phase 3: C++/Obj-C++ compile against godot-cpp headers + Swift header.
 	local cxx_flags=(
