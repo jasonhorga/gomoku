@@ -70,9 +70,30 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 
 	# Choose most visited child
 	var best = root.most_visited_child()
-	if best == null:
-		return Vector2i(7, 7)
-	return best.move
+	var chosen := best.move if best != null else Vector2i(7, 7)
+
+	# Log a summary before tearing down the tree. Memory tracking is what we
+	# need to diagnose the iOS crash — if peak mem creeps each move, something
+	# here still leaks.
+	var mem_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
+	Log.info("MCTS", "sims=%d move=%s visits=%d mem=%.1fMB" % [
+		simulation_count, chosen, (best.visits if best != null else 0), mem_mb
+	])
+
+	# Explicit tree teardown. Weak parent refs break the parent→children cycle,
+	# but we still flush the children array to free nodes eagerly rather than
+	# wait for root to go out of scope.
+	_free_tree(root)
+
+	return chosen
+
+
+func _free_tree(node) -> void:
+	if node == null:
+		return
+	for child in node.children:
+		_free_tree(child)
+	node.children.clear()
 
 
 func _expand_node(node, board: Array, next_player: int) -> void:

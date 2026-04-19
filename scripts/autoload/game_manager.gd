@@ -80,6 +80,10 @@ func setup_ai_vs_ai(engine_black, engine_white) -> void:
 
 func start_game() -> void:
 	logic.reset()
+	var mode_name := ["online", "local_pvp", "vs_ai", "ai_vs_ai"][mode]
+	Log.info("Game", "start mode=%s black=%s white=%s" % [
+		mode_name, _get_player_type_string(0), _get_player_type_string(1)
+	])
 	game_reset.emit()
 	_update_turn_state()
 	_request_current_move()
@@ -115,6 +119,7 @@ func _on_move_decided(row: int, col: int) -> void:
 			NetworkManager.send_move(row, col)
 
 	if logic.game_over:
+		Log.info("Game", "end winner=%d moves=%d" % [logic.winner, logic.move_history.size()])
 		_save_game_record()
 		game_ended.emit(logic.winner)
 	else:

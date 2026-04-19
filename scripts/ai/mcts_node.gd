@@ -1,6 +1,14 @@
 extends RefCounted
 
-var parent  # MCTSNode or null
+# NOTE: parent is a WeakRef (not a direct reference) to avoid a parent↔children
+# reference cycle. GDScript's RefCounted doesn't collect cycles — a strong parent
+# ref here would leak the entire tree after each move, blowing iOS memory
+# after a few searches.
+var _parent_ref: WeakRef = null
+var parent:
+	get:
+		return _parent_ref.get_ref() if _parent_ref != null else null
+
 var children: Array = []  # Array of MCTSNode
 var move: Vector2i
 var player: int  # who made this move
@@ -10,7 +18,7 @@ var prior: float = 0.0  # pattern-based prior probability
 
 
 func _init(p_parent, p_move: Vector2i, p_player: int, p_prior: float = 0.0) -> void:
-	parent = p_parent
+	_parent_ref = weakref(p_parent) if p_parent != null else null
 	move = p_move
 	player = p_player
 	prior = p_prior

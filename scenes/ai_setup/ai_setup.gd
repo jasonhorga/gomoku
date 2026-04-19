@@ -67,7 +67,11 @@ func _create_engine():
 		4:
 			return load("res://scripts/ai/ai_minimax.gd").new(4)
 		5:
-			return load("res://scripts/ai/ai_mcts.gd").new(3000)
+			# iPhone memory is tight; 3000 sims allocates a very large tree
+			# every move. Drop to 1500 on mobile — still strong, and survives
+			# 50+ move games without OOM.
+			var mobile := OS.has_feature("mobile") or OS.get_name() == "iOS"
+			return load("res://scripts/ai/ai_mcts.gd").new(1500 if mobile else 3000)
 		6:
 			return load("res://scripts/ai/ai_neural.gd").new()
 		_:
