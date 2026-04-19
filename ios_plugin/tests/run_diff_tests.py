@@ -21,7 +21,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 AI_SERVER = os.path.abspath(os.path.join(HERE, '..', '..', 'ai_server'))
 sys.path.insert(0, AI_SERVER)
 
+import numpy as np  # noqa: E402
 from ai.game_logic import GameLogic, BOARD_SIZE, BLACK, WHITE  # noqa: E402
+from ai import pattern_eval  # noqa: E402
 
 
 def random_board(rng: random.Random, max_stones: int = 40):
@@ -77,12 +79,14 @@ class Diff:
 
 def test_case(rng: random.Random, cli: str, diff: Diff):
     board, player, history = random_board(rng)
+    board_np = np.array(board, dtype=np.int8)
+
+    # ---- GameLogic ops ----
 
     # 1. nearby_moves — output is a set equality check
     for radius in (1, 2):
         g = GameLogic()
-        import numpy as np
-        g.board = np.array(board, dtype=np.int8)
+        g.board = board_np.copy()
         g.current_player = player
         py_moves = sorted(tuple(m) for m in g.get_nearby_moves(radius))
         sw_resp = call_swift(cli, {
@@ -93,8 +97,7 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
 
     # 2. valid_moves — same check
     g = GameLogic()
-    import numpy as np
-    g.board = np.array(board, dtype=np.int8)
+    g.board = board_np.copy()
     py_valid = sorted(tuple(m) for m in g.get_valid_moves())
     sw_resp = call_swift(cli, {
         "op": "valid_moves", "board": board, "player": player,
@@ -125,7 +128,7 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
     # Use ORIGINAL board (no speculative stone); pick a random cell
     # and count for both players.
     g_cnt = GameLogic()
-    g_cnt.board = np.array(board, dtype=np.int8)
+    g_cnt.board = board_np.copy()
     if empty_cells:
         r, c = rng.choice(empty_cells)
         for dr, dc in [(0, 1), (1, 0), (1, 1), (1, -1)]:
@@ -139,6 +142,68 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
                 diff.expect(
                     f"count_direction({r},{c},{dr},{dc},p={cnt_player})",
                     py_count, sw_count)
+
+    # ---- PatternEval ops ----
+
+    # Sample up to 5 empty cells for scoring tests.
+    sample_cells = rng.sample(empty_cells, min(5, len(empty_cells))) if empty_cells else []
+
+    # 5. score_cell — float, should be bit-exact (all ops are exact
+    # doubles: integer weights times 0.8 yields deterministic IEEE754).
+    for (r, c) in sample_cells:
+        for eval_player in (BLACK, WHITE):
+            py_score = float(pattern_eval.score_cell(board_np, r, c, eval_player))
+            sw_resp = call_swift(cli, {
+                "op": "score_cell", "board": board,
+                "row": r, "col": c, "eval_player": eval_player,
+            })
+            sw_score = float(sw_resp.get("score", float('nan')))
+            diff.expect(f"score_cell({r},{c},p={eval_player})", py_score, sw_score)
+
+    # 6. evaluate_position — core of score_cell, test independently
+    for (r, c) in sample_cells[:3]:
+        for eval_player in (BLACK, WHITE):
+            py_score = float(pattern_eval.evaluate_position(board_np, r, c, eval_player))
+            sw_resp = call_swift(cli, {
+                "op": "evaluate_position", "board": board,
+                "row": r, "col": c, "eval_player": eval_player,
+            })
+            sw_score = float(sw_resp.get("score", float('nan')))
+            diff.expect(f"evaluate_position({r},{c},p={eval_player})", py_score, sw_score)
+
+    # 7. detect_threats — dict of bools, full equality.
+    for (r, c) in sample_cells[:3]:
+        for eval_player in (BLACK, WHITE):
+            py_threats = pattern_eval.detect_threats(board_np, r, c, eval_player)
+            sw_resp = call_swift(cli, {
+                "op": "detect_threats", "board": board,
+                "row": r, "col": c, "eval_player": eval_player,
+            })
+            sw_threats = sw_resp.get("threats")
+            if py_threats is None:
+                diff.expect(f"detect_threats({r},{c},p={eval_player}).null", None, sw_threats)
+            else:
+                # Compare the 5 keys we expose.
+                for k in ("five", "open_four", "half_four", "open_three", "half_three"):
+                    diff.expect(
+                        f"detect_threats({r},{c},p={eval_player}).{k}",
+                        bool(py_threats[k]), bool(sw_threats.get(k, None)))
+
+    # 8. make_feature_planes — (6, 15, 15) float tensor, all 0/1.
+    py_planes = pattern_eval.make_feature_planes(board_np, player)  # (6, 15, 15) float32
+    py_flat = py_planes.flatten().tolist()
+    sw_resp = call_swift(cli, {
+        "op": "make_feature_planes", "board": board, "eval_player": player,
+    })
+    sw_flat = sw_resp.get("planes", [])
+    diff.expect(
+        f"make_feature_planes(p={player}).length",
+        len(py_flat), len(sw_flat))
+    if len(py_flat) == len(sw_flat):
+        mismatches = sum(1 for a, b in zip(py_flat, sw_flat) if a != b)
+        diff.expect(
+            f"make_feature_planes(p={player}).mismatch_count",
+            0, mismatches)
 
 
 def main():

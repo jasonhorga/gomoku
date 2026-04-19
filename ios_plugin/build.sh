@@ -89,7 +89,8 @@ build_slice() {
 		-O \
 		-o "$slice/libGomokuMLCore.a" \
 		Sources/GomokuMLCore.swift \
-		Sources/GameLogic.swift
+		Sources/GameLogic.swift \
+		Sources/PatternEval.swift
 
 	# Phase 3: C++/Obj-C++ compile against godot-cpp headers + Swift header.
 	local cxx_flags=(

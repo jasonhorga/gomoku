@@ -97,6 +97,56 @@ struct DiffTestCLI {
 				row: row, col: col, dRow: dr, dCol: dc, player: Int8(player))
 			return ["count": count]
 
+		// ---- PatternEval ops ----
+
+		case "score_cell":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["eval_player"] as? Int else {
+				return ["error": "score_cell needs row,col,eval_player"]
+			}
+			let score = PatternEval.scoreCell(
+				board: game.board, row: row, col: col, player: Int8(p))
+			return ["score": score]
+
+		case "evaluate_position":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["eval_player"] as? Int else {
+				return ["error": "evaluate_position needs row,col,eval_player"]
+			}
+			let score = PatternEval.evaluatePosition(
+				board: game.board, row: row, col: col, player: Int8(p))
+			return ["score": score]
+
+		case "detect_threats":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["eval_player"] as? Int else {
+				return ["error": "detect_threats needs row,col,eval_player"]
+			}
+			if let t = PatternEval.detectThreats(
+					board: game.board, row: row, col: col, player: Int8(p)) {
+				return ["threats": [
+					"five": t.five,
+					"open_four": t.openFour,
+					"half_four": t.halfFour,
+					"open_three": t.openThree,
+					"half_three": t.halfThree,
+				] as [String: Any]]
+			}
+			return ["threats": NSNull()]
+
+		case "make_feature_planes":
+			guard let p = req["eval_player"] as? Int else {
+				return ["error": "make_feature_planes needs eval_player"]
+			}
+			let flat = PatternEval.makeFeaturePlanes(
+				board: game.board, currentPlayer: Int8(p))
+			// Return flat [Float] → JSON array of numbers. Python
+			// compares against np.ndarray.flatten().
+			return ["planes": flat.map { Double($0) }]
+
 		default:
 			return ["error": "unknown op: \(op)"]
 		}

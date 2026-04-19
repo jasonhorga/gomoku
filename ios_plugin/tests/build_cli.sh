@@ -13,6 +13,7 @@ xcrun swiftc \
 	-parse-as-library \
 	-o "$OUT" \
 	../Sources/GameLogic.swift \
+	../Sources/PatternEval.swift \
 	DiffTestCLI.swift
 
 echo "Built $OUT"
