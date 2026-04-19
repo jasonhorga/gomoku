@@ -47,6 +47,48 @@ jobs:
           sudo xcode-select -s "$FOUND_XCODE"
           xcodebuild -version
 
+      # ---- GomokuNeural plugin build (GDExtension) ----
+      # Runs BEFORE Godot import so the built xcframeworks are in
+      # res://addons/gomoku_neural/ when Godot scans .gdextension files.
+
+      - name: Set up Python 3.11 (for plugin SCons build)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SCons
+        run: python3 -m pip install --upgrade pip scons
+
+      - name: Cache godot-cpp
+        id: cache-godot-cpp
+        uses: actions/cache@v4
+        with:
+          path: ios_plugin/godot-cpp
+          key: godot-cpp-4.5-ios-v2
+
+      - name: Clone godot-cpp
+        if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          cd ios_plugin
+          git clone --depth=1 --branch=4.5 https://github.com/godotengine/godot-cpp.git godot-cpp
+
+      - name: Build GomokuNeural plugin (xcframework)
+        run: |
+          set -e
+          cd ios_plugin
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Stage plugin into addons/gomoku_neural/
+        run: |
+          set -e
+          cp -R ios_plugin/build/libgomoku_neural.ios.template_release.xcframework \
+                addons/gomoku_neural/
+          cp -R ios_plugin/build/libgodot-cpp.ios.template_release.xcframework \
+                addons/gomoku_neural/
+          ls -la addons/gomoku_neural/
+
       - name: Cache Godot + export templates
         id: cache-godot
         uses: actions/cache@v4

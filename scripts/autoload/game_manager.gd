@@ -19,6 +19,25 @@ signal opponent_reset_requested()
 signal game_reset()
 
 
+func _ready() -> void:
+	# P2b smoke test — on iOS TestFlight builds this is how we confirm
+	# the GomokuNeural plugin (Swift + CoreML wrapper) loaded and can
+	# be called from GDScript. The "hardcoded (7,7)" response will be
+	# replaced with real inference in P2f. Platforms without the plugin
+	# (Linux editor, Mac dev builds) silently skip.
+	_smoke_test_plugin()
+
+
+func _smoke_test_plugin() -> void:
+	if not Engine.has_singleton("GomokuNeural"):
+		Log.info("Plugin", "GomokuNeural not present (OK on %s)" % OS.get_name())
+		return
+	var plugin = Engine.get_singleton("GomokuNeural")
+	var version: String = plugin.plugin_version()
+	var move: Vector2i = plugin.get_move(6, [], 1, Vector2i(-1, -1))
+	Log.info("Plugin", "GomokuNeural loaded: %s, test move=(%d,%d)" % [version, move.x, move.y])
+
+
 # ---- Setup methods (call before entering game scene) ----
 
 func setup_online(player_color: int) -> void:

@@ -141,7 +141,10 @@ xcodebuild -create-xcframework \
 	-library "$GODOT_CPP_DIR/bin/libgodot-cpp.ios.${TARGET}.universal.simulator.a" \
 	-output "$OUTPUT_DIR/libgodot-cpp.ios.${TARGET}.xcframework"
 
-cp gomoku_neural.gdextension "$OUTPUT_DIR/"
+# Canonical .gdextension lives in addons/gomoku_neural/; pull it into
+# the build output so the artifact is self-contained (plugin-build.yml
+# is a standalone sanity check, not the full Godot integration path).
+cp ../addons/gomoku_neural/gomoku_neural.gdextension "$OUTPUT_DIR/"
 
 echo ""
 echo "✅ Plugin build complete:"

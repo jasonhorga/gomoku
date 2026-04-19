@@ -1,0 +1,4 @@
+# xcframeworks are built by CI (ios_plugin/build.sh) and dropped here
+# at iOS export time. They're large, arch-specific binaries — build,
+# don't commit.
+*.xcframework/
