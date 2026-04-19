@@ -1,0 +1,80 @@
+name: CI — iOS plugin build (Swift + CoreML)
+
+# Builds the GomokuNeural iOS plugin as an xcframework. Currently returns
+# a hardcoded (7,7) from Swift — no CoreML yet. Successful run proves the
+# Godot ↔ Obj-C++ ↔ Swift toolchain, after which we layer CoreML + the
+# ported MCTS in subsequent phases.
+
+on:
+  push:
+    branches:
+      - swift-ml-plugin
+    paths:
+      - 'ios_plugin/**'
+      - '.github/workflows/plugin-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: plugin-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build xcframework (device + simulator)
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Select Xcode 26.x
+        run: |
+          set -e
+          PREFERRED="/Applications/Xcode_26.2.app"
+          if [ -d "$PREFERRED" ]; then
+            sudo xcode-select -s "$PREFERRED"
+          else
+            MATCHES=$(ls -d /Applications/Xcode_26*.app 2>/dev/null || true)
+            if [ -z "$MATCHES" ]; then
+              echo "❌ No Xcode 26.x"
+              exit 1
+            fi
+            sudo xcode-select -s "$(echo "$MATCHES" | sort -V | tail -n1)"
+          fi
+          xcodebuild -version
+
+      - name: Cache Godot source (headers-only usage)
+        id: cache-godot-src
+        uses: actions/cache@v4
+        with:
+          path: ios_plugin/godot
+          key: godot-src-4.5.1-stable-v1
+
+      - name: Clone Godot source (shallow)
+        if: steps.cache-godot-src.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          cd ios_plugin
+          git clone --depth=1 --branch=4.5.1-stable \
+            https://github.com/godotengine/godot.git godot
+          du -sh godot
+
+      - name: Build xcframework
+        run: |
+          set -e
+          cd ios_plugin
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload plugin bundle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gomoku_neural_plugin
+          path: |
+            ios_plugin/build/gomoku_neural.xcframework
+            ios_plugin/build/gomoku_neural.gdip
+          retention-days: 30

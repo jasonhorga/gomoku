@@ -1,0 +1,17 @@
+[config]
+name="GomokuNeural"
+binary="gomoku_neural.xcframework"
+
+initialization="register_gomoku_neural_types"
+deinitialization="unregister_gomoku_neural_types"
+
+[dependencies]
+linked=[]
+embedded=[]
+system=[]
+
+capabilities=[]
+
+files=[]
+
+[plist]
