@@ -1,0 +1,86 @@
+name: CI — CoreML validation (Swift plugin)
+
+# Runs on the swift-ml-plugin branch to gate Phase 2 work.
+# Converts PyTorch weights to CoreML on macos-15, diffs outputs against the
+# known-good ONNX reference on 100 random positions, fails if drift exceeds
+# FP16 tolerance. If this fails, the Swift plugin plan is dead-on-arrival
+# and we switch to ONNX Runtime for iOS.
+
+on:
+  push:
+    branches:
+      - swift-ml-plugin
+    paths:
+      - 'ai_server/export_coreml.py'
+      - 'ai_server/validate_coreml.py'
+      - 'ai_server/nn/**'
+      - 'ai_server/ai/game_logic.py'
+      - 'ai_server/ai/pattern_eval.py'
+      - 'ai_server/data/weights/best_model.pt'
+      - 'ai_server/data/weights/best_model.onnx'
+      - '.github/workflows/coreml-validate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: coreml-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Convert + diff-test CoreML vs PyTorch/ONNX
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ML toolchain
+        run: |
+          set -e
+          python3 -m pip install --upgrade pip
+          python3 -m pip install torch numpy onnx onnxruntime coremltools
+
+      - name: Verify reference weights are present
+        run: |
+          set -e
+          ls -la ai_server/data/weights/ | head -20
+          test -f ai_server/data/weights/best_model.pt \
+            || (echo "missing best_model.pt" && exit 1)
+          test -f ai_server/data/weights/best_model.onnx \
+            || (echo "missing best_model.onnx" && exit 1)
+
+      - name: Convert PyTorch to CoreML (FP16 mlprogram)
+        run: |
+          set -e
+          cd ai_server
+          python3 export_coreml.py data/weights/best_model.pt \
+              --filters 128 --blocks 6 \
+              -o /tmp/GomokuNet.mlpackage
+          du -sh /tmp/GomokuNet.mlpackage
+
+      - name: Validate CoreML numerical drift vs PyTorch/ONNX
+        run: |
+          set -e
+          cd ai_server
+          python3 validate_coreml.py \
+              --pt data/weights/best_model.pt \
+              --onnx data/weights/best_model.onnx \
+              --mlpackage /tmp/GomokuNet.mlpackage \
+              --filters 128 --blocks 6 \
+              --positions 100
+
+      - name: Upload validated .mlpackage
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GomokuNet.mlpackage
+          path: /tmp/GomokuNet.mlpackage
+          retention-days: 30
