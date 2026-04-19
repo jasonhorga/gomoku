@@ -61,8 +61,9 @@ def convert(pt_path: str, out_path: str, num_filters: int, num_blocks: int,
             ct.TensorType(name="log_policy"),
             ct.TensorType(name="value"),
         ],
-        # iOS 14 is the project's min deploy target (see export_presets.cfg).
-        minimum_deployment_target=ct.target.iOS14,
+        # mlprogram requires iOS 15+. iOS 14/15 cover the same devices
+        # (iPhone 6s onward), so bumping costs nothing in reach.
+        minimum_deployment_target=ct.target.iOS15,
         compute_precision=ct.precision.FLOAT16,  # neural engine prefers fp16
         convert_to="mlprogram",  # mlpackage (not the old .mlmodel format)
     )
