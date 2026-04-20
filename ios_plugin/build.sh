@@ -27,7 +27,7 @@ cd "$(dirname "$0")"
 GODOT_CPP_DIR="${GODOT_CPP_DIR:-./godot-cpp}"
 OUTPUT_DIR="${OUTPUT_DIR:-./build}"
 TARGET="${TARGET:-template_release}"
-IOS_MIN="${IOS_MIN:-15.0}"
+IOS_MIN="${IOS_MIN:-15.4}"
 
 if [ ! -d "$GODOT_CPP_DIR/include" ]; then
 	echo "❌ GODOT_CPP_DIR=$GODOT_CPP_DIR has no include/ — clone godot-cpp first."
