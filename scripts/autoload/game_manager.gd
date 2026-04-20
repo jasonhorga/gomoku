@@ -20,48 +20,50 @@ signal game_reset()
 
 
 func _ready() -> void:
-	# P2b smoke test — on iOS TestFlight builds this is how we confirm
-	# the GomokuNeural plugin (Swift + CoreML wrapper) loaded and can
-	# be called from GDScript. The "hardcoded (7,7)" response will be
-	# replaced with real inference in P2f. Platforms without the plugin
-	# (Linux editor, Mac dev builds) silently skip.
+	# P2b smoke test — trail of checkpoint logs so we can see exactly which
+	# plugin call crashes on device. Without console on iOS the log file is
+	# our only window; each Log.info is flushed, so whatever appears last
+	# identifies the line that blew up.
+	Log.info("GM", "_ready enter, OS=%s" % OS.get_name())
 	_smoke_test_plugin()
+	Log.info("GM", "_ready done")
 
 
 func _smoke_test_plugin() -> void:
-	if not Engine.has_singleton("GomokuNeural"):
+	Log.info("Plugin", "smoke test enter")
+	var has_singleton := Engine.has_singleton("GomokuNeural")
+	Log.info("Plugin", "has_singleton=%s" % has_singleton)
+	if not has_singleton:
 		Log.info("Plugin", "GomokuNeural not present (OK on %s)" % OS.get_name())
 		return
 	var plugin = Engine.get_singleton("GomokuNeural")
+	Log.info("Plugin", "got singleton=%s" % plugin)
 	var version: String = plugin.plugin_version()
+	Log.info("Plugin", "version=%s" % version)
 
-	# Construct a small handcrafted board so the plugin exercises real
-	# pattern logic instead of the empty-board fallback.
-	# Black has a horizontal run at row 7 cols 7-8; white blocks at
-	# (7,6). Strong pattern candidates for black should be (7,5)
-	# blocker or (7,9) extension. For white it'd be (7,9) block.
+	# Handcrafted board: black at (7,7)(7,8), white blocker at (7,6).
+	# Expect pattern-greedy black→(7,9) or (7,5); white→(7,9) block.
 	var test_board: Array = []
 	for _r in range(15):
 		var row: Array = []
 		for _c in range(15):
 			row.append(0)
 		test_board.append(row)
-	test_board[7][7] = 1  # BLACK
+	test_board[7][7] = 1
 	test_board[7][8] = 1
-	test_board[7][6] = 2  # WHITE (blocker)
+	test_board[7][6] = 2
+	Log.info("Plugin", "built test_board, calling get_move (black)…")
 
 	var t0_us: int = Time.get_ticks_usec()
 	var black_move: Vector2i = plugin.get_move(5, test_board, 1, Vector2i(7, 8))
 	var dt_black_us: int = Time.get_ticks_usec() - t0_us
+	Log.info("Plugin", "black→(%d,%d) in %dus" % [black_move.x, black_move.y, dt_black_us])
 
 	var t1_us: int = Time.get_ticks_usec()
 	var white_move: Vector2i = plugin.get_move(5, test_board, 2, Vector2i(7, 8))
 	var dt_white_us: int = Time.get_ticks_usec() - t1_us
-
-	Log.info("Plugin",
-		"%s; black→(%d,%d) in %dus; white→(%d,%d) in %dus"
-		% [version, black_move.x, black_move.y, dt_black_us,
-			white_move.x, white_move.y, dt_white_us])
+	Log.info("Plugin", "white→(%d,%d) in %dus" % [white_move.x, white_move.y, dt_white_us])
+	Log.info("Plugin", "smoke test done")
 
 
 # ---- Setup methods (call before entering game scene) ----
