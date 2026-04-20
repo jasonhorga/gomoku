@@ -61,7 +61,7 @@ func _rotate_if_needed() -> void:
 func _write_banner() -> void:
 	var now := Time.get_datetime_string_from_system(true)
 	var os_name := OS.get_name()
-	var vers := ProjectSettings.get_setting("application/config/version", "?")
+	var vers: String = str(ProjectSettings.get_setting("application/config/version", "?"))
 	_write_line("========================================")
 	_write_line("[%s] Gomoku boot v%s on %s" % [now, vers, os_name])
 	_write_line("========================================")

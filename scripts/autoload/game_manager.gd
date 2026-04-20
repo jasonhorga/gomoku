@@ -127,7 +127,8 @@ func setup_ai_vs_ai(engine_black, engine_white) -> void:
 
 func start_game() -> void:
 	logic.reset()
-	var mode_name := ["online", "local_pvp", "vs_ai", "ai_vs_ai"][mode]
+	var mode_names: Array[String] = ["online", "local_pvp", "vs_ai", "ai_vs_ai"]
+	var mode_name: String = mode_names[mode]
 	Log.info("Game", "start mode=%s black=%s white=%s" % [
 		mode_name, _get_player_type_string(0), _get_player_type_string(1)
 	])
