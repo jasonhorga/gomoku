@@ -89,7 +89,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 
 	# Choose most visited child
 	var best = root.most_visited_child()
-	var chosen := best.move if best != null else Vector2i(7, 7)
+	var chosen: Vector2i = best.move if best != null else Vector2i(7, 7)
 
 	# Log a summary before tearing down the tree. Memory tracking is what we
 	# need to diagnose the iOS crash — if peak mem creeps each move, something
