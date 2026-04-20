@@ -462,6 +462,31 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
         diff.expect(f"mcts_choose_move.shortcut(p={player})",
                     py_move, sw_move)
 
+    # 21. 9-channel network input tensor. The CoreMLAdapter builds this
+    # from Swift; Python's reference is game.to_tensor_9ch. Integer 0/1
+    # mask → exact equality is the right check (no ULP tolerance needed).
+    g21 = GameLogic()
+    g21.board = board_np.copy()
+    g21.current_player = player
+    # Inject a synthetic last-move by setting move_history; Python uses
+    # it for plane 8 and Swift reads game.moveHistory.last.
+    last_move = history[-1] if history else None
+    if last_move is not None:
+        g21.move_history = [tuple(last_move)]
+    py_tensor = g21.to_tensor_9ch(player).flatten().tolist()
+    sw_resp = call_swift(cli, {
+        "op": "nine_channel_input",
+        "board": board, "player": player,
+        "move_history": [last_move] if last_move else [],
+    })
+    sw_tensor = sw_resp.get("planes", [])
+    diff.expect(f"nine_channel_input(p={player}).length",
+                len(py_tensor), len(sw_tensor))
+    if len(py_tensor) == len(sw_tensor):
+        mismatches_9ch = sum(1 for a, b in zip(py_tensor, sw_tensor) if a != b)
+        diff.expect(f"nine_channel_input(p={player}).mismatch_count",
+                    0, mismatches_9ch)
+
 
 def main():
     parser = argparse.ArgumentParser()

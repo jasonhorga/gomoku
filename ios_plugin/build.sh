@@ -102,7 +102,8 @@ build_slice() {
 		Sources/PatternEval.swift \
 		Sources/VcfSearch.swift \
 		Sources/VctSearch.swift \
-		Sources/MCTSEngine.swift
+		Sources/MCTSEngine.swift \
+		Sources/CoreMLAdapter.swift
 
 	# Phase 3: C++/Obj-C++ compile against godot-cpp headers + Swift header.
 	local cxx_flags=(

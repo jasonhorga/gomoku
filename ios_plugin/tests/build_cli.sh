@@ -17,6 +17,7 @@ xcrun swiftc \
 	../Sources/VcfSearch.swift \
 	../Sources/VctSearch.swift \
 	../Sources/MCTSEngine.swift \
+	../Sources/CoreMLAdapter.swift \
 	DiffTestCLI.swift
 
 echo "Built $OUT"

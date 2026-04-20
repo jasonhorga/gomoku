@@ -56,8 +56,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install SCons
-        run: python3 -m pip install --upgrade pip scons
+      - name: Install SCons + CoreML toolchain
+        run: |
+          set -e
+          python3 -m pip install --upgrade pip scons
+          # coremltools is only used to convert best_model.pt → mlpackage
+          # for the L6 CNN. Pinned to the version that P2a verified against
+          # torch 2.7; see .github/workflows/coreml-validate.yml.
+          python3 -m pip install "torch==2.7.*" coremltools numpy
 
       - name: Cache godot-cpp
         id: cache-godot-cpp
@@ -88,6 +94,21 @@ jobs:
           cp -R ios_plugin/build/libgodot-cpp.ios.template_release.xcframework \
                 addons/gomoku_neural/
           ls -la addons/gomoku_neural/
+
+      # L6 needs big_iter_1 as a CoreML model. We convert on every build
+      # (cheap, ~20s) rather than committing the mlmodelc since weights
+      # can be bumped without re-committing a derived artifact.
+      - name: Convert best_model.pt → GomokuNet.mlmodelc
+        run: |
+          set -e
+          cd ai_server
+          python3 export_coreml.py data/weights/best_model.pt \
+              --filters 128 --blocks 6 \
+              -o /tmp/GomokuNet.mlpackage
+          # Pre-compile so the on-device first-launch load doesn't stall.
+          xcrun coremlc compile /tmp/GomokuNet.mlpackage /tmp/
+          ls -la /tmp/GomokuNet.mlmodelc | head -5
+          du -sh /tmp/GomokuNet.mlmodelc
 
       - name: Cache Godot + export templates
         id: cache-godot
@@ -135,10 +156,22 @@ jobs:
           ls -la build/ios/
 
       - name: Set up Ruby
+        id: setup_ruby_early
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
+
+      - name: Inject CoreML model + framework into xcodeproj
+        run: |
+          set -e
+          # fastlane's Gemfile already depends on xcodeproj; the
+          # inject_coreml.rb script uses it to add GomokuNet.mlmodelc to
+          # Copy Bundle Resources and link CoreML.framework. Running
+          # BEFORE fastlane beta so xcodebuild archive picks everything up.
+          bundle exec ruby ios_plugin/scripts/inject_coreml.rb \
+              build/ios/gomoku.xcodeproj \
+              /tmp/GomokuNet.mlmodelc
 
       - name: Validate signing secrets
         env:

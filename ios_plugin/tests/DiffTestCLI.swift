@@ -333,6 +333,20 @@ struct DiffTestCLI {
 			let m = engine.chooseMove(game: game)
 			return ["move": [m.row, m.col]]
 
+		case "nine_channel_input":
+			// P2h: CoreMLAdapter's 9-plane input tensor. Compares to
+			// Python's GameLogic.to_tensor_9ch. This is the bug-prone
+			// piece of the CoreML port — if the channel layout or the
+			// own/opp split disagree, inference will silently produce
+			// garbage policies.
+			if let history = req["move_history"] as? [[Int]] {
+				game.moveHistory = history.compactMap {
+					$0.count >= 2 ? Move($0[0], $0[1]) : nil
+				}
+			}
+			let flat = CoreMLAdapter.makeNineChannelInput(game: game)
+			return ["planes": flat.map { Double($0) }]
+
 		default:
 			return ["error": "unknown op: \(op)"]
 		}
