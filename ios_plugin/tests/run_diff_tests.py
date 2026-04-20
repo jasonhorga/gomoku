@@ -24,6 +24,10 @@ sys.path.insert(0, AI_SERVER)
 import numpy as np  # noqa: E402
 from ai.game_logic import GameLogic, BOARD_SIZE, BLACK, WHITE  # noqa: E402
 from ai import pattern_eval  # noqa: E402
+from ai.vcf_search import (  # noqa: E402
+    find_vcf, _candidate_moves, _makes_five, _four_info,
+)
+from ai.vct_search import find_vct, _get_open_threes  # noqa: E402
 
 
 def random_board(rng: random.Random, max_stones: int = 40):
@@ -204,6 +208,103 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
         diff.expect(
             f"make_feature_planes(p={player}).mismatch_count",
             0, mismatches)
+
+    # ---- VCF / VCT ops ----
+    # find_vcf/vct mutate their board arg. Pass a deep copy and reset
+    # current_player — both implementations use the 2D list form here.
+
+    # 9. vcf_candidates — sorted nearby cells (VCF's own, not GameLogic's).
+    for radius in (1, 2):
+        py_cands = list(_candidate_moves([row[:] for row in board], radius=radius))
+        sw_resp = call_swift(cli, {
+            "op": "vcf_candidates", "board": board, "radius": radius,
+        })
+        sw_cands = [tuple(m) for m in sw_resp.get("moves", [])]
+        diff.expect(f"vcf_candidates(r={radius})",
+                    py_cands, sw_cands)
+
+    # 10. makes_five on sample empty cells for both players.
+    for (r, c) in sample_cells[:3]:
+        for who in (BLACK, WHITE):
+            py = bool(_makes_five([row[:] for row in board], r, c, who))
+            sw_resp = call_swift(cli, {
+                "op": "makes_five", "board": board,
+                "row": r, "col": c, "player": who,
+            })
+            sw = bool(sw_resp.get("makes_five", False))
+            diff.expect(f"makes_five({r},{c},p={who})", py, sw)
+
+    # 11. four_info on sample cells (same cells, both players). Normalise
+    # kind to string; blocks as a sorted dedup'd list so Python's
+    # extend()-then-set() is comparable to Swift's explicit dedup.
+    for (r, c) in sample_cells[:3]:
+        for who in (BLACK, WHITE):
+            b2 = [row[:] for row in board]
+            b2[r][c] = who
+            py_kind, py_blocks = _four_info(b2, r, c, who)
+            py_blocks_norm = sorted(set(tuple(bc) for bc in py_blocks))
+            sw_resp = call_swift(cli, {
+                "op": "four_info", "board": b2,
+                "row": r, "col": c, "player": who,
+            })
+            sw_kind = sw_resp.get("kind")
+            sw_blocks = [tuple(bc) for bc in sw_resp.get("blocks", [])]
+            diff.expect(f"four_info({r},{c},p={who}).kind",
+                        py_kind, sw_kind)
+            diff.expect(f"four_info({r},{c},p={who}).blocks",
+                        py_blocks_norm, sw_blocks)
+
+    # 12. open_threes — used by VCT. Normalise Python output to match
+    # DiffTestCLI's encoding (direction-sorted, extensions sorted).
+    for (r, c) in sample_cells[:3]:
+        for who in (BLACK, WHITE):
+            b2 = [row[:] for row in board]
+            b2[r][c] = who
+            py_threes = _get_open_threes(b2, r, c, who)
+            py_norm = sorted(
+                (tuple(d), sorted(tuple(e) for e in exts))
+                for d, exts in py_threes
+            )
+            sw_resp = call_swift(cli, {
+                "op": "open_threes", "board": b2,
+                "row": r, "col": c, "player": who,
+            })
+            sw_threes = sw_resp.get("threes", [])
+            sw_norm = [
+                (tuple(t["dir"]), [tuple(e) for e in t["extensions"]])
+                for t in sw_threes
+            ]
+            diff.expect(f"open_threes({r},{c},p={who})", py_norm, sw_norm)
+
+    # 13. find_vcf — compare (r, c) tuple or None. With the determinism
+    # patch (sorted candidate_moves + sorted blocks), Python and Swift
+    # walk the same branches in the same order, so the first winning
+    # move they return must be identical.
+    # Use shallow depth/branch to keep per-case time <~1s.
+    for attacker in (BLACK, WHITE):
+        py = find_vcf([row[:] for row in board], attacker,
+                       max_depth=6, max_branch=8)
+        sw_resp = call_swift(cli, {
+            "op": "find_vcf", "board": board, "attacker": attacker,
+            "max_depth": 6, "max_branch": 8,
+        })
+        sw_raw = sw_resp.get("move")
+        sw = tuple(sw_raw) if sw_raw is not None else None
+        diff.expect(f"find_vcf(attacker={attacker})",
+                    tuple(py) if py is not None else None, sw)
+
+    # 14. find_vct — same idea, lower depth since branching is higher.
+    for attacker in (BLACK, WHITE):
+        py = find_vct([row[:] for row in board], attacker,
+                       max_depth=4, max_branch=6)
+        sw_resp = call_swift(cli, {
+            "op": "find_vct", "board": board, "attacker": attacker,
+            "max_depth": 4, "max_branch": 6,
+        })
+        sw_raw = sw_resp.get("move")
+        sw = tuple(sw_raw) if sw_raw is not None else None
+        diff.expect(f"find_vct(attacker={attacker})",
+                    tuple(py) if py is not None else None, sw)
 
 
 def main():

@@ -14,6 +14,8 @@ xcrun swiftc \
 	-o "$OUT" \
 	../Sources/GameLogic.swift \
 	../Sources/PatternEval.swift \
+	../Sources/VcfSearch.swift \
+	../Sources/VctSearch.swift \
 	DiffTestCLI.swift
 
 echo "Built $OUT"

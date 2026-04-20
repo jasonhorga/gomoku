@@ -91,7 +91,12 @@ def _four_info(board, r, c, player):
 
 
 def _candidate_moves(board, radius=1):
-    """Nearby empty cells (within radius of any stone)."""
+    """Nearby empty cells (within radius of any stone).
+
+    Returns a sorted list (by row, col) so iteration order is deterministic
+    — the Swift port depends on this for bit-exact diff testing, and
+    reproducible self-play games benefit too.
+    """
     cands = set()
     has_stone = False
     for r in range(BOARD_SIZE):
@@ -106,7 +111,7 @@ def _candidate_moves(board, radius=1):
                                 cands.add((nr, nc))
     if not has_stone:
         return [(BOARD_SIZE // 2, BOARD_SIZE // 2)]
-    return list(cands)
+    return sorted(cands)
 
 
 def find_vcf(board, attacker, max_depth=10, max_branch=8):
@@ -178,9 +183,10 @@ def _vcf_recurse(board, attacker, depth, max_branch):
             board[r][c] = EMPTY
             continue
 
-        # Try each forced block; if ALL lead to recursive VCF wins, we've won
+        # Try each forced block; if ALL lead to recursive VCF wins, we've won.
+        # sorted() for deterministic iteration (matches Swift port).
         all_blocked = True
-        for br, bc in set(blocks):
+        for br, bc in sorted(set(blocks)):
             if board[br][bc] != EMPTY:
                 continue
             board[br][bc] = defender

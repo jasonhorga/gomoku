@@ -133,8 +133,9 @@ def _vct_recurse(board, attacker, depth, max_branch):
             continue
 
         # For ALL defense moves, can attacker still win?
+        # sorted() for deterministic iteration (matches Swift port).
         all_win = True
-        for def_r, def_c in defense_cells:
+        for def_r, def_c in sorted(defense_cells):
             board[def_r][def_c] = defender
             sub = _vct_recurse(board, attacker, depth - 1, max_branch)
             board[def_r][def_c] = EMPTY

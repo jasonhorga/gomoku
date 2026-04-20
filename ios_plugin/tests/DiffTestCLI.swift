@@ -147,6 +147,108 @@ struct DiffTestCLI {
 			// compares against np.ndarray.flatten().
 			return ["planes": flat.map { Double($0) }]
 
+		// ---- VCF / VCT ops ----
+
+		case "vcf_candidates":
+			// VCF/VCT's own candidate_moves (not GameLogic.nearbyMoves).
+			// Tested separately because its determinism (sorted) is what
+			// makes the Python↔Swift diff tests reliable.
+			let radius = req["radius"] as? Int ?? 1
+			let cands = VcfSearch.candidateMoves(board: game.board, radius: radius)
+			return ["moves": cands.map { [$0.row, $0.col] }]
+
+		case "makes_five":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["player"] as? Int else {
+				return ["error": "makes_five needs row,col,player"]
+			}
+			let hit = VcfSearch.makesFive(
+				board: game.board, row: row, col: col, player: Int8(p))
+			return ["makes_five": hit]
+
+		case "four_info":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["player"] as? Int else {
+				return ["error": "four_info needs row,col,player"]
+			}
+			let info = VcfSearch.fourInfo(
+				board: game.board, row: row, col: col, player: Int8(p))
+			var kind: Any = NSNull()
+			if let k = info.kind {
+				switch k {
+				case .five: kind = "five"
+				case .openFour: kind = "open_four"
+				case .halfFour: kind = "half_four"
+				}
+			}
+			// Dedupe+sort blocks so order matches Python's set() iteration
+			// after our determinism patch.
+			let packed = Set(info.blockCells.map {
+				$0.row * GameLogic.boardSize + $0.col
+			})
+			let blocks = packed.sorted().map {
+				[$0 / GameLogic.boardSize, $0 % GameLogic.boardSize]
+			}
+			return ["kind": kind, "blocks": blocks]
+
+		case "find_vcf":
+			guard let attacker = req["attacker"] as? Int else {
+				return ["error": "find_vcf needs attacker"]
+			}
+			let depth = req["max_depth"] as? Int ?? 6
+			let branch = req["max_branch"] as? Int ?? 8
+			var board = game.board
+			let move = VcfSearch.findVcf(
+				board: &board, attacker: Int8(attacker),
+				maxDepth: depth, maxBranch: branch)
+			if let m = move {
+				return ["move": [m.row, m.col]]
+			}
+			return ["move": NSNull()]
+
+		case "open_threes":
+			guard let row = req["row"] as? Int,
+					let col = req["col"] as? Int,
+					let p = req["player"] as? Int else {
+				return ["error": "open_threes needs row,col,player"]
+			}
+			let threes = VctSearch.openThrees(
+				board: game.board, row: row, col: col, player: Int8(p))
+			// Encode as a sorted list of directions (dr,dc) for stable
+			// comparison. Extension cells also sorted.
+			let encoded = threes
+				.map { (t: (dir: (Int, Int), extensions: [(row: Int, col: Int)])) -> [String: Any] in
+					let exts = t.extensions.map { [$0.row, $0.col] }
+						.sorted { ($0[0], $0[1]) < ($1[0], $1[1]) }
+					return [
+						"dir": [t.dir.0, t.dir.1],
+						"extensions": exts,
+					]
+				}
+				.sorted { (a, b) -> Bool in
+					let ad = a["dir"] as! [Int]
+					let bd = b["dir"] as! [Int]
+					return (ad[0], ad[1]) < (bd[0], bd[1])
+				}
+			return ["threes": encoded]
+
+		case "find_vct":
+			guard let attacker = req["attacker"] as? Int else {
+				return ["error": "find_vct needs attacker"]
+			}
+			let depth = req["max_depth"] as? Int ?? 4
+			let branch = req["max_branch"] as? Int ?? 6
+			var board = game.board
+			let move = VctSearch.findVct(
+				board: &board, attacker: Int8(attacker),
+				maxDepth: depth, maxBranch: branch)
+			if let m = move {
+				return ["move": [m.row, m.col]]
+			}
+			return ["move": NSNull()]
+
 		default:
 			return ["error": "unknown op: \(op)"]
 		}
