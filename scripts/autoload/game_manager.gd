@@ -153,6 +153,14 @@ func submit_human_move(row: int, col: int) -> void:
 
 func _request_current_move() -> void:
 	var ctrl = _current_controller()
+	# Bracket each request with a "thinking" log so we can see how long
+	# a GDScript AI (L1-L4) spends choosing a move — previously their
+	# turns were invisible between request and _on_move_decided.
+	Log.info("Turn", "move %d: %s thinking (%s to play)" % [
+		logic.move_history.size() + 1,
+		_get_player_type_string(_color_index(logic.current_player)),
+		"BLACK" if logic.current_player == _GameLogic.BLACK else "WHITE"
+	])
 	if not ctrl.move_decided.is_connected(_on_move_decided):
 		ctrl.move_decided.connect(_on_move_decided, CONNECT_ONE_SHOT)
 	ctrl.request_move(logic.board, logic.current_player, logic.move_history)
@@ -160,6 +168,14 @@ func _request_current_move() -> void:
 
 func _on_move_decided(row: int, col: int) -> void:
 	var color: int = logic.current_player
+	# One line per move regardless of source (human, GDScript L1-L4, or
+	# the Swift plugin) so the log is a full transcript. Previously only
+	# plugin-routed L5/L6 logged, which hid stalls in GDScript AIs and
+	# made mystery (1,1)-type moves impossible to contextualise.
+	Log.info("Move", "%d→(%d,%d) by %s" % [
+		logic.move_history.size() + 1, row, col,
+		_get_player_type_string(_color_index(color))
+	])
 
 	if not logic.place_stone(row, col):
 		# Invalid move — re-request
