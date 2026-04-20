@@ -85,7 +85,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 				node.wins += value
 			else:
 				node.wins += 1.0 - value
-			node = node.parent
+			node = node.get_parent_node()
 
 	# Choose most visited child
 	var best = root.most_visited_child()
