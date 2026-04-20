@@ -311,7 +311,7 @@ struct DiffTestCLI {
 			// keyed by "r,c" for stable comparison.
 			let engine = MCTSEngine()
 			let cands: [(row: Int, col: Int)] =
-				game.nearbyMoves(radius: 2).map { ($0.row, $0.col) }
+				game.nearbyMoves(radius: 2).map { (row: $0.row, col: $0.col) }
 			let p = engine.computePriors(
 				game: game, candidates: cands, player: game.currentPlayer)
 			var map: [String: Double] = [:]
