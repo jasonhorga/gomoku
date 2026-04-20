@@ -160,7 +160,11 @@ public final class MCTSEngine {
 
 	public func getMoveProbabilities(game: GameLogic) -> [Float] {
 		let n = GameLogic.boardSize
-		var candidates = game.nearbyMoves(radius: 2)
+		// GameLogic.nearbyMoves returns [Move]; everything downstream
+		// treats moves as labelled tuples (row:col:) for easier pattern-
+		// matching with Python code.
+		var candidates: [(row: Int, col: Int)] =
+			game.nearbyMoves(radius: 2).map { ($0.row, $0.col) }
 		if candidates.isEmpty {
 			return onehot(row: 7, col: 7)
 		}
@@ -280,6 +284,7 @@ public final class MCTSEngine {
 					player: simGame.currentPlayer, prior: childPrior)
 				if !simGame.gameOver {
 					let childCands = simGame.nearbyMoves(radius: 1)
+						.map { ($0.row, $0.col) }
 					child.untriedMoves = Array(childCands.prefix(8))
 				}
 				node.children.append(child)
@@ -405,7 +410,7 @@ public final class MCTSEngine {
 
 		let player = game.currentPlayer
 		let opponent: Int8 = player == 1 ? 2 : 1
-		let candidates = game.nearbyMoves(radius: 1)
+		let candidates = game.nearbyMoves(radius: 1).map { ($0.row, $0.col) }
 		if candidates.isEmpty { return 0 }
 
 		for m in candidates {
@@ -454,7 +459,7 @@ public final class MCTSEngine {
 
 		let player = game.currentPlayer
 		let opponent: Int8 = player == 1 ? 2 : 1
-		let candidates = game.nearbyMoves(radius: 1)
+		let candidates = game.nearbyMoves(radius: 1).map { ($0.row, $0.col) }
 		if candidates.isEmpty { return 0.0 }
 
 		for m in candidates {

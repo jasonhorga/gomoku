@@ -310,7 +310,8 @@ struct DiffTestCLI {
 			// Pattern-only priors (nnModel=nil). Returns sparse map
 			// keyed by "r,c" for stable comparison.
 			let engine = MCTSEngine()
-			let cands = game.nearbyMoves(radius: 2)
+			let cands: [(row: Int, col: Int)] =
+				game.nearbyMoves(radius: 2).map { ($0.row, $0.col) }
 			let p = engine.computePriors(
 				game: game, candidates: cands, player: game.currentPlayer)
 			var map: [String: Double] = [:]
