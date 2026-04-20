@@ -6,10 +6,17 @@ import CoreGraphics
 // P2f: MCTSEngine-backed move selection, level-dispatched.
 //   L5 — pattern-guided MCTS, 1500 sims (matches GDScript ai_mcts.gd
 //        defaults). No CNN; nothing to load.
-//   L6 — hybrid MCTS with CoreML priors from big_iter_1 (66.9% vs
-//        bootstrap on Mac Python eval). sims=200 to match the Mac
-//        onnx_server default — the CNN contributes most of the strength
-//        so we don't need to brute-force simulations.
+//   L6 — hybrid MCTS mirroring the Mac onnx_server production config
+//        exactly: 200 sims, CoreML CNN priors blended 50/50 with pattern
+//        priors, VCF depth 10, VCT via MCTSEngine internals. The
+//        weight/sim pair was tuned twice — docs/ai_journey.md §9.1
+//        (training-time sweep picked 0.5; 0.3 and 0.75 both collapsed
+//        below 32%) and §14.2 (sims raised 80→200 after users beat L6
+//        with double-threat combinations that 80 sims couldn't see).
+//        Do not "bench-tune" this off 100 sims — at 100 sims the CNN
+//        prior noise dominates, which is why an earlier P2k regression
+//        disabled the CNN and shipped a worse AI. 200 is the tested
+//        production budget.
 //   L1–L4 stay in GDScript; the plugin is never called for them.
 //
 // CoreML loading is lazy: only L6's first chooseMove call triggers it.
@@ -47,27 +54,21 @@ import CoreGraphics
 		let engine: MCTSEngine
 		switch level {
 		case 6:
-			// CNN disabled: the bench_hybrid_vs_pattern.py diff found
-			// best_model.pt (big_iter_1 128f/6b) at cnn_prior_weight=0.5
-			// + 100 sims scored 35% against a pure pattern-MCTS baseline
-			// — the CNN's noisier priors didn't get enough visits to
-			// amplify. This is the same Python code Mac's onnx_server
-			// runs, so Mac's L6 was also underperforming; iOS just
-			// matched that regression.
-			//
-			// Fix is inference-time only (no retraining): drop the CNN
-			// and compensate with 2× the pattern-MCTS sim budget over
-			// L5, plus a longer VCF depth. NnModelAdapter plumbing stays
-			// so a future checkpoint can plug back in without more
-			// code changes — just flip nnModel back to ensureCoreMLLoaded().
+			// Hybrid MCTS: CoreML CNN priors blended 50/50 with pattern
+			// priors, same configuration as Mac onnx_server.py
+			// OnnxServer.__init__ (and docs §14.6). Deliberately does
+			// not "compensate" with more sims — 200 is the tested
+			// budget above which per-move latency becomes user-visible.
+			let adapter = ensureCoreMLLoaded()
 			engine = MCTSEngine(
-				simulations: 3000,
-				nnModel: nil,
+				simulations: 200,
+				nnModel: adapter,
 				cPuct: 1.4,
 				usePatternPrior: true,
 				dirichletAlpha: 0.0,
-				vcfDepth: 12,
-				vcfBranch: 8
+				vcfDepth: 10,
+				vcfBranch: 8,
+				cnnPriorWeight: 0.5
 			)
 		case 5:
 			// Pattern-only MCTS, 1500 sims. No CNN dependency.
@@ -97,12 +98,11 @@ import CoreGraphics
 	}
 
 	@objc public func version() -> NSString {
-		// CoreML kept in the pipe for future checkpoints; not exercised
-		// by L6 right now (see chooseMove comment). Version string
-		// reports what L6 actually runs so the on-device smoke log is
-		// unambiguous.
+		let ml = coreMLLoadAttempted
+			? (coreMLAdapter != nil ? "CoreML" : "pattern-only")
+			: "CoreML-lazy"
 		return NSString(string:
-			"GomokuMLCore P2k (pattern-MCTS, L5=1500 L6=3000+VCF12, CNN off)")
+			"GomokuMLCore P2l (MCTS, L5=1500 L6=200+CNN50/50+VCF+VCT, nn=\(ml))")
 	}
 
 	/// Lazy-load big_iter_1 from the app bundle. Nil → L6 falls back to
