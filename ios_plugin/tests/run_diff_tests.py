@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import json
+import math
 import os
 import random
 import subprocess
@@ -66,6 +67,22 @@ class Diff:
     def expect(self, label: str, py, sw):
         self.checks += 1
         if py != sw:
+            self.mismatches.append((label, py, sw))
+
+    def expect_close(self, label: str, py, sw,
+                     rel_tol: float = 1e-9, abs_tol: float = 1e-12):
+        """Approx-equal float comparison. numpy.exp and libm's exp agree
+        on the same x86/arm libm, but numpy's vectorised path occasionally
+        differs from the scalar Foundation.exp by 1–2 ULPs, which then
+        ripples through softmax/tanh. Values that depend on those ops
+        should use this instead of exact equality."""
+        self.checks += 1
+        if py is None and sw is None:
+            return
+        if py is None or sw is None:
+            self.mismatches.append((label, py, sw))
+            return
+        if not math.isclose(py, sw, rel_tol=rel_tol, abs_tol=abs_tol):
             self.mismatches.append((label, py, sw))
 
     def summary(self, total_cases: int) -> int:
@@ -330,8 +347,8 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
         sw_probs = {(int(row[0]), int(row[1])): row[2]
                     for row in sw_resp.get("probs", [])}
         for (r, c), py_p in py_probs.items():
-            diff.expect(f"softmax_prior(t={temp}).({r},{c})",
-                        py_p, sw_probs.get((r, c)))
+            diff.expect_close(f"softmax_prior(t={temp}).({r},{c})",
+                              py_p, sw_probs.get((r, c)))
 
     # 16. PUCT formula — scalar; independent from board state so we
     # synthesise a few node configurations.
@@ -356,8 +373,8 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
             "visits": visits, "parent_visits": pvisits, "c_puct": c_puct,
         })
         sw_score = float(sw_resp.get("score", float('nan')))
-        diff.expect(f"puct({prior},{wins},{visits},{pvisits},{c_puct})",
-                    py_score, sw_score)
+        diff.expect_close(f"puct({prior},{wins},{visits},{pvisits},{c_puct})",
+                          py_score, sw_score)
 
     # 17. static_leaf_value — integer. Use raw board + player; both
     # sides mutate their copy of the board internally.
@@ -382,8 +399,8 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
             "player": player, "perspective": persp,
         })
         sw_v = float(sw_resp.get("value", float('nan')))
-        diff.expect(f"continuous_leaf_value(p={player},persp={persp})",
-                    py_v, sw_v)
+        diff.expect_close(f"continuous_leaf_value(p={player},persp={persp})",
+                          py_v, sw_v)
 
     # 19. compute_priors in pattern-only mode. Sparse dict keyed "r,c".
     g19 = GameLogic()
@@ -400,8 +417,8 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
     diff.expect(f"compute_priors.keys(p={player})",
                 sorted(py_map.keys()), sorted(sw_map.keys()))
     for key, py_v in py_map.items():
-        diff.expect(f"compute_priors(p={player}).{key}",
-                    py_v, sw_map.get(key))
+        diff.expect_close(f"compute_priors(p={player}).{key}",
+                          py_v, sw_map.get(key))
 
     # 20. chooseMove shortcut equality — only when VCF or VCT returns a
     # forced win for SOME side, or when an immediate win/block exists.

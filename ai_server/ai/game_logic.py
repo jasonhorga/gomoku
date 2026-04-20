@@ -80,7 +80,12 @@ class GameLogic:
         return moves
 
     def get_nearby_moves(self, radius=2):
-        """Return empty cells within radius of any placed stone."""
+        """Return empty cells within radius of any placed stone.
+
+        Sorted (row, col) so MCTS's [:8]/[:10]/[:12] prefix slicing is
+        deterministic across runs; the Swift port uses row-major
+        iteration and needs the same subset to match bit-exact.
+        """
         candidates = set()
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
@@ -93,7 +98,7 @@ class GameLogic:
                                     candidates.add((nr, nc))
         if not candidates and not self.move_history:
             candidates.add((7, 7))
-        return list(candidates)
+        return sorted(candidates)
 
     def to_tensor(self, player: int) -> np.ndarray:
         """Convert board to neural network input tensor: 2 channels (own, opponent)."""
