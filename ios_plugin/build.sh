@@ -76,6 +76,14 @@ build_slice() {
 	# All .swift files in Sources/ compile into a single GomokuMLCore
 	# module; pure-Swift ones (GameLogic.swift et al) stay private —
 	# only @objc-annotated ones show up in GomokuMLCore-Swift.h.
+	# -runtime-compatibility-version none stops swiftc from emitting the
+	# autolink hint for libswiftCompatibility56. Godot's exported xcodeproj
+	# doesn't link Swift runtime libs, so the hint ends up unresolved at
+	# archive. Our Swift surface (NSObject/@objc wrapper, NSNumber/CGPoint
+	# bridging, Int8 arrays, Double math) touches none of the features the
+	# shim provides — concurrency, ABI-stable witness tables, etc. The
+	# _smoke_test_plugin call at startup is the canary: if something we use
+	# did need the shim, the plugin would crash on first get_move.
 	xcrun swiftc \
 		-target "$target" \
 		-sdk "$sdk_path" \
@@ -86,6 +94,7 @@ build_slice() {
 		-emit-objc-header-path "$slice/GomokuMLCore-Swift.h" \
 		-emit-library -static \
 		-parse-as-library \
+		-runtime-compatibility-version none \
 		-O \
 		-o "$slice/libGomokuMLCore.a" \
 		Sources/GomokuMLCore.swift \
