@@ -28,6 +28,8 @@ from ai.vcf_search import (  # noqa: E402
     find_vcf, _candidate_moves, _makes_five, _four_info,
 )
 from ai.vct_search import find_vct, _get_open_threes  # noqa: E402
+from ai.mcts_engine import MCTSEngine, _softmax_prior  # noqa: E402
+from ai.pattern_eval import score_cell  # noqa: E402
 
 
 def random_board(rng: random.Random, max_stones: int = 40):
@@ -305,6 +307,143 @@ def test_case(rng: random.Random, cli: str, diff: Diff):
         sw = tuple(sw_raw) if sw_raw is not None else None
         diff.expect(f"find_vct(attacker={attacker})",
                     tuple(py) if py is not None else None, sw)
+
+    # ---- MCTSEngine helper ops ----
+    # See DiffTestCLI comment: full MCTS loop is intentionally NOT diff
+    # tested. We verify the pieces that determine move selection in
+    # every position (priors, leaf evals) and the early-exit shortcuts.
+
+    # 15. _softmax_prior — bit-exact on random scored lists. numpy.exp
+    # and Foundation.exp both go through libm on macos-15; any drift
+    # would be a real compiler/platform bug.
+    for temp in (0.3, 1.0):
+        cells = rng.sample(
+            [(r, c) for r in range(BOARD_SIZE) for c in range(BOARD_SIZE)],
+            k=min(10, BOARD_SIZE * BOARD_SIZE))
+        scored = [((r, c), rng.uniform(-100, 5000)) for (r, c) in cells]
+        py_probs = _softmax_prior(scored, temperature=temp)
+        sw_resp = call_swift(cli, {
+            "op": "softmax_prior",
+            "scored": [[r, c, s] for (r, c), s in scored],
+            "temperature": temp,
+        })
+        sw_probs = {(int(row[0]), int(row[1])): row[2]
+                    for row in sw_resp.get("probs", [])}
+        for (r, c), py_p in py_probs.items():
+            diff.expect(f"softmax_prior(t={temp}).({r},{c})",
+                        py_p, sw_probs.get((r, c)))
+
+    # 16. PUCT formula — scalar; independent from board state so we
+    # synthesise a few node configurations.
+    for scenario in [
+        # (prior, wins, visits, parent_visits, c_puct)
+        (0.1,  0.0,  0,  0,   1.4),
+        (0.3,  5.0, 10, 100,  1.4),
+        (0.8, 12.0, 50, 500,  2.5),
+        (0.05, 0.0,  0, 42,   1.0),
+    ]:
+        prior, wins, visits, pvisits, c_puct = scenario
+        # Build a Python node mirror + call .puct().
+        from ai.mcts_engine import MCTSNode
+        parent = MCTSNode(None, None, BLACK)
+        parent.visits = pvisits
+        child = MCTSNode(parent, (0, 0), WHITE, prior=prior)
+        child.visits = visits
+        child.wins = wins
+        py_score = float(child.puct(c_puct))
+        sw_resp = call_swift(cli, {
+            "op": "puct", "prior": prior, "wins": wins,
+            "visits": visits, "parent_visits": pvisits, "c_puct": c_puct,
+        })
+        sw_score = float(sw_resp.get("score", float('nan')))
+        diff.expect(f"puct({prior},{wins},{visits},{pvisits},{c_puct})",
+                    py_score, sw_score)
+
+    # 17. static_leaf_value — integer. Use raw board + player; both
+    # sides mutate their copy of the board internally.
+    g17 = GameLogic()
+    g17.board = board_np.copy()
+    g17.current_player = player
+    py_winner = int(MCTSEngine()._static_leaf_value(g17))
+    sw_resp = call_swift(cli, {
+        "op": "static_leaf_value", "board": board, "player": player,
+    })
+    sw_winner = int(sw_resp.get("winner", -999))
+    diff.expect(f"static_leaf_value(p={player})", py_winner, sw_winner)
+
+    # 18. continuous_leaf_value — float scalar, both perspectives.
+    for persp in (BLACK, WHITE):
+        g18 = GameLogic()
+        g18.board = board_np.copy()
+        g18.current_player = player
+        py_v = float(MCTSEngine()._continuous_leaf_value(g18, persp))
+        sw_resp = call_swift(cli, {
+            "op": "continuous_leaf_value", "board": board,
+            "player": player, "perspective": persp,
+        })
+        sw_v = float(sw_resp.get("value", float('nan')))
+        diff.expect(f"continuous_leaf_value(p={player},persp={persp})",
+                    py_v, sw_v)
+
+    # 19. compute_priors in pattern-only mode. Sparse dict keyed "r,c".
+    g19 = GameLogic()
+    g19.board = board_np.copy()
+    g19.current_player = player
+    cands = g19.get_nearby_moves(2)
+    py_priors = MCTSEngine()._compute_priors(g19, cands, player)
+    py_map = {f"{r},{c}": float(v) for (r, c), v in py_priors.items()}
+    sw_resp = call_swift(cli, {
+        "op": "compute_priors_pattern",
+        "board": board, "player": player,
+    })
+    sw_map = {k: float(v) for k, v in (sw_resp.get("priors") or {}).items()}
+    diff.expect(f"compute_priors.keys(p={player})",
+                sorted(py_map.keys()), sorted(sw_map.keys()))
+    for key, py_v in py_map.items():
+        diff.expect(f"compute_priors(p={player}).{key}",
+                    py_v, sw_map.get(key))
+
+    # 20. chooseMove shortcut equality — only when VCF or VCT returns a
+    # forced win for SOME side, or when an immediate win/block exists.
+    # In those cases both engines take the same deterministic branch and
+    # must agree. Non-shortcut positions depend on the stochastic MCTS
+    # loop and are not compared.
+    shortcut = False
+    g20 = GameLogic()
+    g20.board = board_np.copy()
+    g20.current_player = player
+    opponent = WHITE if player == BLACK else BLACK
+    # Immediate win / block?
+    for r, c in g20.get_nearby_moves(2):
+        for who in (player, opponent):
+            g20.board[r][c] = who
+            if g20._check_win(r, c):
+                shortcut = True
+            g20.board[r][c] = 0
+        if shortcut:
+            break
+    # VCF / VCT for either side?
+    if not shortcut:
+        if (find_vcf([row[:] for row in board], player, max_depth=10)
+                is not None
+                or find_vcf([row[:] for row in board], opponent, max_depth=10)
+                is not None
+                or find_vct([row[:] for row in board], player, max_depth=6)
+                is not None
+                or find_vct([row[:] for row in board], opponent, max_depth=6)
+                is not None):
+            shortcut = True
+
+    if shortcut:
+        py_move = tuple(MCTSEngine(simulations=1).choose_move(g20))
+        sw_resp = call_swift(cli, {
+            "op": "mcts_choose_move", "board": board, "player": player,
+            "simulations": 1,
+        })
+        sw_raw = sw_resp.get("move")
+        sw_move = tuple(sw_raw) if sw_raw else None
+        diff.expect(f"mcts_choose_move.shortcut(p={player})",
+                    py_move, sw_move)
 
 
 def main():

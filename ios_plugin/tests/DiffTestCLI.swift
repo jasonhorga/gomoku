@@ -249,6 +249,89 @@ struct DiffTestCLI {
 			}
 			return ["move": NSNull()]
 
+		// ---- MCTSEngine helper ops ----
+		// The full MCTS loop is NOT diff-tested: random.choice on the
+		// Python side + float cascades across 1000 sims make visit
+		// counts non-deterministic across implementations. We test the
+		// bit-exact leaves instead (softmax, puct, leaf evals) plus
+		// shortcut paths (immediate win/block, VCF, VCT) where both
+		// engines take the same deterministic branch.
+
+		case "softmax_prior":
+			// Input: {"scored": [[r,c,score], ...], "temperature": float}
+			guard let raw = req["scored"] as? [[Double]] else {
+				return ["error": "softmax_prior needs scored=[[r,c,score]...]"]
+			}
+			let temp = req["temperature"] as? Double ?? 1.0
+			let scored: [(move: (row: Int, col: Int), score: Double)] =
+				raw.compactMap { arr in
+					guard arr.count >= 3 else { return nil }
+					return ((Int(arr[0]), Int(arr[1])), arr[2])
+				}
+			let soft = MCTS.softmaxPrior(scores: scored, temperature: temp)
+			return ["probs": soft.map {
+				[Double($0.move.row), Double($0.move.col), $0.prob]
+			}]
+
+		case "puct":
+			// Bare PUCT formula on synthetic node counts.
+			guard let prior = req["prior"] as? Double,
+					let wins = req["wins"] as? Double,
+					let visits = req["visits"] as? Int,
+					let parentVisits = req["parent_visits"] as? Int else {
+				return ["error":
+					"puct needs prior,wins,visits,parent_visits"]
+			}
+			let cPuct = req["c_puct"] as? Double ?? 1.4
+			// Build a minimal parent+child pair so we exercise the real
+			// puct() method instead of duplicating the formula here.
+			let parent = MCTSNode(parent: nil, move: nil, player: 1)
+			parent.visits = parentVisits
+			let child = MCTSNode(parent: parent, move: (0, 0),
+			                     player: 2, prior: prior)
+			child.visits = visits
+			child.wins = wins
+			return ["score": child.puct(cPuct: cPuct)]
+
+		case "static_leaf_value":
+			// Integer output; truly bit-exact.
+			let engine = MCTSEngine()
+			return ["winner": Int(engine.staticLeafValue(game: game))]
+
+		case "continuous_leaf_value":
+			guard let persp = req["perspective"] as? Int else {
+				return ["error": "continuous_leaf_value needs perspective"]
+			}
+			let engine = MCTSEngine()
+			return ["value": engine.continuousLeafValue(
+				game: game, perspective: Int8(persp))]
+
+		case "compute_priors_pattern":
+			// Pattern-only priors (nnModel=nil). Returns sparse map
+			// keyed by "r,c" for stable comparison.
+			let engine = MCTSEngine()
+			let cands = game.nearbyMoves(radius: 2)
+			let p = engine.computePriors(
+				game: game, candidates: cands, player: game.currentPlayer)
+			var map: [String: Double] = [:]
+			for c in cands {
+				let key = "\(c.row),\(c.col)"
+				map[key] = p[GameLogic.idx(c.row, c.col)]
+			}
+			return ["priors": map]
+
+		case "mcts_choose_move":
+			// Only meaningful for shortcut-triggering positions; see
+			// run_diff_tests.py for gating. sims=1 keeps the non-shortcut
+			// branch cheap since the test ignores that output anyway.
+			let sims = req["simulations"] as? Int ?? 1
+			let engine = MCTSEngine(
+				simulations: sims, nnModel: nil,
+				usePatternPrior: true, dirichletAlpha: 0.0,
+				vcfDepth: 10, vcfBranch: 8)
+			let m = engine.chooseMove(game: game)
+			return ["move": [m.row, m.col]]
+
 		default:
 			return ["error": "unknown op: \(op)"]
 		}
