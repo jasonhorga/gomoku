@@ -515,10 +515,14 @@ public final class MCTSEngine {
 			}
 			return best
 		}
-		// Non-root: Python uses random.choice; we take index 0 for a
-		// deterministic, diff-testable walk. Gameplay impact minimal —
-		// every untried move still gets expanded given enough sims.
-		return node.untriedMoves[0]
+		// Non-root: random.choice equivalent. An earlier iteration took
+		// index 0 here for diff-test determinism, but that made every
+		// AI-vs-AI match play out identically — the user noticed two
+		// back-to-back L4-vs-L6 games were byte-for-byte the same.
+		// The diff tester only compares shortcut-triggering positions
+		// (not the MCTS loop itself), so randomness here is safe.
+		let idx = Int.random(in: 0..<node.untriedMoves.count)
+		return node.untriedMoves[idx]
 	}
 
 	private func backprop(

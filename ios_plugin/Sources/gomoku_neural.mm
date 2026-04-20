@@ -34,6 +34,21 @@ void GomokuNeural::_bind_methods() {
 			D_METHOD("plugin_version"), &GomokuNeural::plugin_version);
 }
 
+// Single shared GomokuMLCore for the whole process. Before this, each
+// RPC created a fresh instance, which meant:
+//   - the lazy CoreML loader ran every L6 move (~300ms reload cost),
+//   - plugin_version() returned "CoreML-lazy" even right after a
+//     successful L6 call (because it saw a fresh uninitialised core).
+// The ARC __strong keeps it alive until process exit; that's fine
+// for a stateless inference cache.
+static GomokuMLCore *shared_core() {
+	static __strong GomokuMLCore *s_core = nil;
+	if (s_core == nil) {
+		s_core = [[GomokuMLCore alloc] init];
+	}
+	return s_core;
+}
+
 Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i /*last_move*/) {
 	// Godot Array of Arrays → NSArray of NSArray of NSNumber so the
 	// Swift @objc method can consume it directly. 15×15 board has 225
@@ -50,16 +65,14 @@ Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i /*l
 		[ns_board addObject:ns_row];
 	}
 
-	GomokuMLCore *core = [[GomokuMLCore alloc] init];
-	CGPoint pt = [core chooseMoveWithLevel:(NSInteger)level
-	                                  board:ns_board
-	                                 player:(NSInteger)player];
+	CGPoint pt = [shared_core() chooseMoveWithLevel:(NSInteger)level
+	                                           board:ns_board
+	                                          player:(NSInteger)player];
 	return Vector2i((int)pt.x, (int)pt.y);
 }
 
 String GomokuNeural::plugin_version() {
-	GomokuMLCore *core = [[GomokuMLCore alloc] init];
-	NSString *v = [core version];
+	NSString *v = [shared_core() version];
 	const char *utf8 = [v UTF8String];
 	return String::utf8(utf8 ? utf8 : "unknown");
 }

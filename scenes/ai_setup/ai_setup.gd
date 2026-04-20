@@ -23,9 +23,11 @@ func _ready() -> void:
 	%Level5.pressed.connect(_select_level.bind(5))
 	%Level6.pressed.connect(_select_level.bind(6))
 
-	# Level 6 needs the bundled Python AI server, which cannot run on iOS
-	# (sandboxed, no subprocess/Python interpreter available).
-	if OS.has_feature("mobile") or OS.get_name() == "iOS":
+	# L6 on iOS now runs through the GomokuNeural plugin (CoreML-backed
+	# hybrid MCTS, same architecture as Mac Python onnx_server). The
+	# hide-on-mobile rule only applies if the native plugin isn't there.
+	if (OS.has_feature("mobile") or OS.get_name() == "iOS") \
+			and not Engine.has_singleton("GomokuNeural"):
 		%Level6.visible = false
 		if selected_level == 6:
 			selected_level = 5
