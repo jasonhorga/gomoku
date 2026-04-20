@@ -150,12 +150,27 @@ public final class MCTSEngine {
 
 	public func chooseMove(game: GameLogic) -> (row: Int, col: Int) {
 		let probs = getMoveProbabilities(game: game)
-		var best = 0
-		for i in 1..<probs.count where probs[i] > probs[best] {
+		let n = GameLogic.boardSize
+		var best: Int = -1
+		var bestVal: Float = 0
+		for i in 0..<probs.count where probs[i] > bestVal {
+			bestVal = probs[i]
 			best = i
 		}
-		let n = GameLogic.boardSize
-		return (best / n, best % n)
+		if best >= 0 {
+			return (best / n, best % n)
+		}
+		// Degenerate path: MCTS produced no signal (all-zero probs).
+		// Before this guard, argmax would pick index 0 = (0,0) even
+		// on a board where (0,0) is nowhere near playable — which is
+		// the "L5 一直往左上角下" bug the user hit. Pick the first
+		// candidate near an existing stone instead; it's at worst a
+		// local move, never (0,0) on a non-empty board.
+		let cands = game.nearbyMoves(radius: 2)
+		if let c = cands.first {
+			return (c.row, c.col)
+		}
+		return (7, 7)
 	}
 
 	public func getMoveProbabilities(game: GameLogic) -> [Float] {

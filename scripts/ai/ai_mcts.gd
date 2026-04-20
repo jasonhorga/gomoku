@@ -12,12 +12,19 @@ func _init(sims: int = 1500) -> void:
 
 
 func choose_move(board: Array, current_player: int, move_history: Array) -> Vector2i:
+	# Entry log so diagnostic can prove choose_move is actually reached —
+	# the "L5 (0,0) loop" bug left no trace whether plugin was called,
+	# or GDScript fallback ran, or choose_move never fired at all.
+	var has_plugin: bool = Engine.has_singleton("GomokuNeural")
+	Log.info("MCTS", "choose_move enter player=%d plugin=%s history=%d" % [
+		current_player, has_plugin, move_history.size()
+	])
 	# iOS fast path: delegate to the Swift GomokuNeural plugin, which
 	# runs the same pattern-guided MCTS natively (100x faster than
 	# GDScript, lets us bump sims + VCF depth without hurting latency).
 	# On platforms without the plugin (macOS / Linux editor) we fall
 	# through to the pure-GDScript implementation below.
-	if Engine.has_singleton("GomokuNeural"):
+	if has_plugin:
 		var plugin = Engine.get_singleton("GomokuNeural")
 		var last_move: Vector2i = move_history[-1] if not move_history.is_empty() else Vector2i(-1, -1)
 		var result: Vector2i = plugin.get_move(5, board, current_player, last_move)
