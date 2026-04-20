@@ -1,27 +1,35 @@
 import Foundation
 import CoreGraphics
 
-// Swift core exposed to Obj-C++ / Godot. P2c scope: greedy pattern-eval
-// move selection — scores every candidate (nearby-of-stones) cell with
-// PatternEval.scoreCell, picks the argmax. Weaker than MCTS but proves
-// the ported Swift core runs end-to-end on iOS. MCTS (+ CoreML value
-// head) stack on top in P2e.
+// Swift core exposed to Obj-C++ / Godot.
+//
+// P2f: MCTSEngine-backed move selection, level-dispatched. L5 gets
+// pattern-guided MCTS (matches Fix A defaults on GDScript: 1500 sims,
+// VCF 10 / 8, pattern priors). L6 reuses the same engine with a
+// heavier sim budget while CoreML hookup is still pending — a hybrid
+// adapter lands later and L6 will pick up the extra strength for free.
+// L1-L4 stay in GDScript (simple heuristics); the plugin is never
+// called for them.
+//
+// Public @objc surface:
+//   chooseMove(level:board:player:) -> CGPoint — the Godot-facing RPC
+//   version()                                  — diagnostic string
 @objc public class GomokuMLCore: NSObject {
 
 	@objc public override init() {
 		super.init()
 	}
 
-	/// Pick a move using pattern-greedy logic. `board` is a 15-row array
-	/// of 15-col arrays of NSNumber (int); `player` is 1 (BLACK) or 2
-	/// (WHITE). Returns (row, col) packed as CGPoint. Empty / unreachable
-	/// boards default to the center (7, 7).
+	/// Pick a move. `board` is a 15-row array of 15 NSNumber columns
+	/// (int values 0=empty, 1=BLACK, 2=WHITE). `player` is 1 or 2.
+	/// Returns (row, col) packed as CGPoint. Unreachable boards
+	/// default to the centre (7, 7).
 	@objc public func chooseMove(level: Int, board: [[NSNumber]], player: Int) -> CGPoint {
 		let game = GameLogic()
 		game.currentPlayer = Int8(player)
 
-		// Unpack the 2D NSNumber array into GameLogic's flat buffer.
-		// Defensive: tolerate short rows / columns.
+		// NSNumber → flat Int8 board. Defensive about short rows/cols
+		// so a malformed GDScript call doesn't crash the plugin.
 		let size = GameLogic.boardSize
 		for r in 0..<min(size, board.count) {
 			let row = board[r]
@@ -30,26 +38,35 @@ import CoreGraphics
 			}
 		}
 
-		let candidates = game.nearbyMoves(radius: 2)
-		if candidates.isEmpty {
+		if game.nearbyMoves(radius: 2).isEmpty {
 			return CGPoint(x: 7, y: 7)
 		}
 
-		var bestScore: Double = -Double.infinity
-		var bestMove = candidates[0]
-		for move in candidates {
-			let score = PatternEval.scoreCell(
-				board: game.board, row: move.row, col: move.col,
-				player: Int8(player))
-			if score > bestScore {
-				bestScore = score
-				bestMove = move
-			}
+		// Sim budget per level. 1500 matches scripts/ai/ai_mcts.gd for
+		// L5, and L6 gets a ~1.7x uplift on the same pattern-guided
+		// engine. These numbers were calibrated on M5 device timing —
+		// see the Mac AI-perf plan commit for the rationale.
+		let sims: Int
+		switch level {
+		case 5: sims = 1500
+		case 6: sims = 2500
+		default: sims = 800  // defensive fallback
 		}
-		return CGPoint(x: bestMove.row, y: bestMove.col)
+
+		let engine = MCTSEngine(
+			simulations: sims,
+			nnModel: nil,
+			cPuct: 1.4,
+			usePatternPrior: true,
+			dirichletAlpha: 0.0,
+			vcfDepth: 10,
+			vcfBranch: 8
+		)
+		let move = engine.chooseMove(game: game)
+		return CGPoint(x: move.row, y: move.col)
 	}
 
 	@objc public func version() -> NSString {
-		return "GomokuMLCore P2c (pattern-greedy, no MCTS yet)"
+		return "GomokuMLCore P2f (pattern-MCTS, L5=1500 L6=2500)"
 	}
 }

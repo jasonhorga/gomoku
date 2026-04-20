@@ -18,6 +18,18 @@ func _init() -> void:
 
 
 func choose_move(board: Array, current_player: int, move_history: Array) -> Vector2i:
+	# iOS fast path: the Swift plugin runs MCTSEngine natively (2500
+	# sims for L6, heavier than L5). iOS can't start the Python
+	# subprocess, so before this landed L6 always fell through to the
+	# 2000-sim GDScript fallback — the plugin closes that gap without
+	# needing a server.
+	if Engine.has_singleton("GomokuNeural"):
+		var plugin = Engine.get_singleton("GomokuNeural")
+		var last_move: Vector2i = move_history[-1] if not move_history.is_empty() else Vector2i(-1, -1)
+		var result: Vector2i = plugin.get_move(6, board, current_player, last_move)
+		Log.info("Neural", "plugin L6 move=%s" % result)
+		return result
+
 	# Try server first
 	if _use_server and _tcp_client.is_connected_to_server():
 		var board_flat: Array = []
