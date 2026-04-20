@@ -107,6 +107,7 @@ func setup_local_pvp() -> void:
 func setup_vs_ai(human_color: int, ai_engine) -> void:
 	mode = GameMode.VS_AI
 	my_color = human_color
+	Log.info("Engine", "setup_vs_ai engine=%s" % _describe_engine(ai_engine))
 	var human = load("res://scripts/player/human_player.gd").new()
 	human.color = human_color
 	# ai_engine: an AIEngine instance, will be wrapped in LocalAIPlayer
@@ -121,6 +122,9 @@ func setup_vs_ai(human_color: int, ai_engine) -> void:
 func setup_ai_vs_ai(engine_black, engine_white) -> void:
 	mode = GameMode.AI_VS_AI
 	my_color = -1
+	Log.info("Engine", "setup_ai_vs_ai black=%s white=%s" % [
+		_describe_engine(engine_black), _describe_engine(engine_white)
+	])
 	var LocalAIPlayer = load("res://scripts/player/local_ai_player.gd")
 	var ai_b = LocalAIPlayer.new(engine_black)
 	ai_b.color = _GameLogic.BLACK
@@ -129,6 +133,15 @@ func setup_ai_vs_ai(engine_black, engine_white) -> void:
 	players[0] = ai_b
 	players[1] = ai_w
 	_disconnect_network_signals()
+
+
+func _describe_engine(engine) -> String:
+	if engine == null:
+		return "null"
+	var script = engine.get_script() if engine.has_method("get_script") else null
+	var path: String = str(script.resource_path) if script != null else "no-script"
+	var name: String = engine.get_name() if engine.has_method("get_name") else "<no-get_name>"
+	return "%s[%s]" % [path, name]
 
 
 # ---- Core game loop ----
