@@ -16,6 +16,10 @@ func _ready() -> void:
 	join_button.pressed.connect(_on_join_pressed)
 	%AiLabButton.pressed.connect(_on_ai_lab_pressed)
 	%QuitButton.pressed.connect(_on_quit_pressed)
+	# iOS apps can't quit programmatically (Apple HIG); hide the button
+	# so users aren't confused by a non-functional control.
+	if OS.has_feature("mobile") or OS.get_name() == "iOS":
+		%QuitButton.visible = false
 
 
 func _on_local_pvp_pressed() -> void:

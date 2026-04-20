@@ -166,6 +166,9 @@ func _request_current_move() -> void:
 	ctrl.request_move(logic.board, logic.current_player, logic.move_history)
 
 
+var _invalid_retries: int = 0
+
+
 func _on_move_decided(row: int, col: int) -> void:
 	var color: int = logic.current_player
 	# One line per move regardless of source (human, GDScript L1-L4, or
@@ -178,9 +181,35 @@ func _on_move_decided(row: int, col: int) -> void:
 	])
 
 	if not logic.place_stone(row, col):
-		# Invalid move — re-request
+		# Invalid move. An AI that keeps returning the same (0,0) caused
+		# the "stuck game" bug in the user's log — we'd re-request the
+		# same engine, it'd return (0,0) again, infinite loop filling
+		# the log. Cap the retries and log the identity of the misbehaving
+		# engine so we can debug it next session.
+		_invalid_retries += 1
+		var ctrl = _current_controller()
+		var engine_info: String = "unknown"
+		if ctrl and "ai_engine" in ctrl and ctrl.ai_engine != null:
+			engine_info = str(ctrl.ai_engine.get_script().resource_path) \
+				if ctrl.ai_engine.get_script() != null else "no-script"
+		Log.warn("Move", "invalid move (%d,%d) retry=%d engine=%s" % [
+			row, col, _invalid_retries, engine_info
+		])
+		if _invalid_retries >= 3:
+			# Fallback: pick any legal move so the game doesn't freeze.
+			var legal = _first_empty_cell()
+			_invalid_retries = 0
+			if legal.x >= 0:
+				Log.warn("Move", "AI stuck, falling back to (%d,%d)" % [legal.x, legal.y])
+				_on_move_decided(legal.x, legal.y)
+			else:
+				Log.error("Move", "no legal move, ending game")
+				logic.game_over = true
+				game_ended.emit(0)
+			return
 		_request_current_move()
 		return
+	_invalid_retries = 0
 
 	stone_placed.emit(row, col, color)
 
@@ -252,6 +281,14 @@ func _current_controller():
 
 func _color_index(color: int) -> int:
 	return 0 if color == _GameLogic.BLACK else 1
+
+
+func _first_empty_cell() -> Vector2i:
+	for r in range(_GameLogic.BOARD_SIZE):
+		for c in range(_GameLogic.BOARD_SIZE):
+			if logic.board[r][c] == _GameLogic.EMPTY:
+				return Vector2i(r, c)
+	return Vector2i(-1, -1)
 
 
 func _cancel_current_move() -> void:

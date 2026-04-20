@@ -1,6 +1,7 @@
 extends Control
 
 const _GameLogic = preload("res://scripts/game_logic.gd")
+const _PlayerController = preload("res://scripts/player/player_controller.gd")
 
 @onready var turn_label: Label = %TurnLabel
 @onready var color_label: Label = %ColorLabel
@@ -46,15 +47,34 @@ func _configure_for_mode() -> void:
 			_update_color_label()
 			resign_button.text = "Resign"
 		GameManager.GameMode.AI_VS_AI:
-			color_label.text = "AI vs AI"
+			# Show which engines are fighting — before this just said
+			# "AI vs AI", which made it impossible to tell L4 vs L6
+			# from L5 vs L1 at a glance.
+			color_label.text = "%s (Black) vs %s (White)" % [
+				_friendly_engine_name(0), _friendly_engine_name(1)
+			]
 			resign_button.text = "Stop"
 
 
 func _update_color_label() -> void:
+	# Vs-AI: say who you're playing against so the HUD doesn't just say
+	# "AI" with no context.
+	var opponent_idx := 1 if GameManager.my_color == _GameLogic.BLACK else 0
+	var opp_name := _friendly_engine_name(opponent_idx)
 	if GameManager.my_color == _GameLogic.BLACK:
-		color_label.text = "You: Black \u25cf"
+		color_label.text = "You: Black \u25cf  vs  %s" % opp_name
 	else:
-		color_label.text = "You: White \u25cb"
+		color_label.text = "You: White \u25cb  vs  %s" % opp_name
+
+
+func _friendly_engine_name(player_idx: int) -> String:
+	var p = GameManager.players[player_idx] if player_idx < GameManager.players.size() else null
+	if p == null:
+		return "?"
+	if "ai_engine" in p and p.ai_engine != null and p.ai_engine.has_method("get_name"):
+		return p.ai_engine.get_name()
+	# Human / no engine: just say which side.
+	return "Human" if p.player_type == _PlayerController.Type.LOCAL_HUMAN else "AI"
 
 
 func _on_turn_changed(_is_my_turn: bool) -> void:
