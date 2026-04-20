@@ -47,18 +47,27 @@ import CoreGraphics
 		let engine: MCTSEngine
 		switch level {
 		case 6:
-			// Hybrid MCTS: CNN priors blended 50/50 with pattern priors,
-			// same configuration as onnx_server.py OnnxServer.__init__.
-			let adapter = ensureCoreMLLoaded()
+			// CNN disabled: the bench_hybrid_vs_pattern.py diff found
+			// best_model.pt (big_iter_1 128f/6b) at cnn_prior_weight=0.5
+			// + 100 sims scored 35% against a pure pattern-MCTS baseline
+			// — the CNN's noisier priors didn't get enough visits to
+			// amplify. This is the same Python code Mac's onnx_server
+			// runs, so Mac's L6 was also underperforming; iOS just
+			// matched that regression.
+			//
+			// Fix is inference-time only (no retraining): drop the CNN
+			// and compensate with 2× the pattern-MCTS sim budget over
+			// L5, plus a longer VCF depth. NnModelAdapter plumbing stays
+			// so a future checkpoint can plug back in without more
+			// code changes — just flip nnModel back to ensureCoreMLLoaded().
 			engine = MCTSEngine(
-				simulations: 200,
-				nnModel: adapter,
+				simulations: 3000,
+				nnModel: nil,
 				cPuct: 1.4,
 				usePatternPrior: true,
 				dirichletAlpha: 0.0,
-				vcfDepth: 10,
-				vcfBranch: 8,
-				cnnPriorWeight: 0.5
+				vcfDepth: 12,
+				vcfBranch: 8
 			)
 		case 5:
 			// Pattern-only MCTS, 1500 sims. No CNN dependency.
@@ -88,11 +97,12 @@ import CoreGraphics
 	}
 
 	@objc public func version() -> NSString {
-		let ml = coreMLLoadAttempted
-			? (coreMLAdapter != nil ? "CoreML" : "pattern-only")
-			: "CoreML-lazy"
+		// CoreML kept in the pipe for future checkpoints; not exercised
+		// by L6 right now (see chooseMove comment). Version string
+		// reports what L6 actually runs so the on-device smoke log is
+		// unambiguous.
 		return NSString(string:
-			"GomokuMLCore P2j (MCTS, L5=1500 L6=200+CNN, nn=\(ml))")
+			"GomokuMLCore P2k (pattern-MCTS, L5=1500 L6=3000+VCF12, CNN off)")
 	}
 
 	/// Lazy-load big_iter_1 from the app bundle. Nil → L6 falls back to
