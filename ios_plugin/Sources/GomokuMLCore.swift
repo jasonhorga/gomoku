@@ -102,7 +102,7 @@ import CoreGraphics
 			? (coreMLAdapter != nil ? "CoreML" : "pattern-only")
 			: "CoreML-lazy"
 		return NSString(string:
-			"GomokuMLCore P2p (MCTS, L5=1500 L6=200+CNN50/50+VCF+VCT, nn=\(ml))")
+			"GomokuMLCore P3r (MCTS, L5=1500 L6=200+CNN50/50+VCF+VCT, nn=\(ml), arc4random)")
 	}
 
 	/// Lazy-load big_iter_1 from the app bundle. Nil → L6 falls back to

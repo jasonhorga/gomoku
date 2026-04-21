@@ -530,13 +530,19 @@ public final class MCTSEngine {
 			}
 			return best
 		}
-		// Non-root: random.choice equivalent. An earlier iteration took
-		// index 0 here for diff-test determinism, but that made every
-		// AI-vs-AI match play out identically — the user noticed two
-		// back-to-back L4-vs-L6 games were byte-for-byte the same.
-		// The diff tester only compares shortcut-triggering positions
-		// (not the MCTS loop itself), so randomness here is safe.
-		let idx = Int.random(in: 0..<node.untriedMoves.count)
+		// Non-root: random.choice equivalent.
+		//
+		// Use arc4random_uniform directly rather than Swift's
+		// `Int.random(in:)`. The latter failed on iOS in the AI Lab
+		// batch (user report 2026-04-21): 6 back-to-back L4-vs-L5
+		// games produced byte-identical move sequences, confirming
+		// SystemRandomNumberGenerator wasn't actually yielding
+		// entropy under our build flags (-static -O
+		// -parse-as-library -runtime-compatibility-version none).
+		// arc4random_uniform is a Darwin C function — no Swift
+		// stdlib init path — which iOS guarantees to seed from
+		// /dev/urandom.
+		let idx = Int(arc4random_uniform(UInt32(node.untriedMoves.count)))
 		return node.untriedMoves[idx]
 	}
 
