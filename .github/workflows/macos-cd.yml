@@ -164,8 +164,13 @@ jobs:
           ls -la build/gomoku_macos.zip
 
       - name: Inspect Godot macOS export output
+        # Show what Godot actually bundled — specifically the plugin
+        # .dylib path. If it's missing here, the bug is in the Godot
+        # export, not build_app.sh.
         run: |
-          unzip -l build/gomoku_macos.zip | head -30
+          unzip -l build/gomoku_macos.zip | head -40
+          echo "--- plugin/coreml files ---"
+          unzip -l build/gomoku_macos.zip | grep -E "gomoku_neural|dylib|mlmodelc|mlpackage" || echo "(none found)"
 
       - name: Assemble Gomoku.app (build_app.sh)
         run: |

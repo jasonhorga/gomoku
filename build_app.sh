@@ -63,27 +63,28 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -replace CFBundleDisplayName -string "五子棋 Gomoku" "$APP/Contents/Info.plist"
 fi
 
-# Godot's macOS export bundles `res://addons/gomoku_neural/` contents
-# into the .app, so the plugin .dylib and .mlmodelc should already be
-# present under Contents/Resources/addons/gomoku_neural/. No manual
-# copying needed — just verify:
-PLUGIN="$APP/Contents/Resources/addons/gomoku_neural/libgomoku_neural.macos.template_release.dylib"
-MLMODEL="$APP/Contents/Resources/addons/gomoku_neural/GomokuNet.mlmodelc"
-if [ ! -f "$PLUGIN" ]; then
-    echo "⚠️  Plugin .dylib not found in exported .app:"
-    echo "    expected: $PLUGIN"
-    echo "    Did you run 'cd ios_plugin && ./build.sh macos' before Godot export?"
-    echo "    And is libgomoku_neural.macos.template_release.dylib copied into addons/gomoku_neural/ ?"
+# Godot's macOS export lays out GDExtension artifacts in one of a few
+# places depending on version. Instead of hard-coding the path, find
+# them wherever they ended up.
+PLUGIN=$(find "$APP" -name "libgomoku_neural.macos.*.dylib" -type f 2>/dev/null | head -1)
+MLMODEL=$(find "$APP" -name "GomokuNet.mlmodelc" -type d 2>/dev/null | head -1)
+
+if [ -z "$PLUGIN" ]; then
+    echo "⚠️  Plugin .dylib not found anywhere in .app"
+    echo "    Did Godot actually bundle the addon? Check:"
+    find "$APP" -name "*.dylib" 2>/dev/null || echo "    (no .dylib found at all)"
+    echo "    Did you run 'cd ios_plugin && ./build.sh macos' and stage the .dylib into addons/gomoku_neural/ before Godot export?"
     exit 1
 fi
-if [ ! -d "$MLMODEL" ]; then
-    echo "⚠️  GomokuNet.mlmodelc not found:"
-    echo "    expected: $MLMODEL"
-    echo "    Compile with: xcrun coremlcompiler compile GomokuNet.mlpackage addons/gomoku_neural/"
+if [ -z "$MLMODEL" ]; then
+    echo "⚠️  GomokuNet.mlmodelc not found anywhere in .app"
+    echo "    Existing .mlmodelc / .mlpackage dirs:"
+    find "$APP" \( -name "*.mlmodelc" -o -name "*.mlpackage" \) 2>/dev/null || echo "    (none)"
+    echo "    Compile with: xcrun coremlc compile .../GomokuNet.mlpackage addons/gomoku_neural/"
     exit 1
 fi
-echo "  ✓ Plugin dylib: $(du -h "$PLUGIN" | cut -f1)"
-echo "  ✓ CoreML model: $(du -sh "$MLMODEL" | cut -f1)"
+echo "  ✓ Plugin dylib: $(du -h "$PLUGIN" | cut -f1) at ${PLUGIN#$APP/}"
+echo "  ✓ CoreML model: $(du -sh "$MLMODEL" | cut -f1) at ${MLMODEL#$APP/}"
 
 # Re-package
 cd "$TMPDIR"

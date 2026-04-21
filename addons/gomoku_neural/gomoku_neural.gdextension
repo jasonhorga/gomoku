@@ -8,11 +8,13 @@ compatibility_minimum = "4.2"
 ios.debug = "res://addons/gomoku_neural/libgomoku_neural.ios.template_release.xcframework"
 ios.release = "res://addons/gomoku_neural/libgomoku_neural.ios.template_release.xcframework"
 
-# macOS: godot-cpp is statically linked INTO the .dylib, so no separate
-# dependency entry needed (unlike iOS where godot-cpp ships as its own
-# xcframework). arm64 only — user is on M-chip Mac.
-macos.debug = "res://addons/gomoku_neural/libgomoku_neural.macos.template_release.dylib"
-macos.release = "res://addons/gomoku_neural/libgomoku_neural.macos.template_release.dylib"
+# macOS: Godot 4.5 requires explicit arch tag in the key (macos.arm64.*)
+# when the .dylib is a single-slice binary, otherwise the extension
+# loader reports "No library found for macos.arm64". arm64 only — M-chip
+# Mac is the deployment target; Intel can be added as macos.x86_64.*
+# later if needed.
+macos.debug.arm64 = "res://addons/gomoku_neural/libgomoku_neural.macos.template_release.dylib"
+macos.release.arm64 = "res://addons/gomoku_neural/libgomoku_neural.macos.template_release.dylib"
 
 [dependencies]
 
