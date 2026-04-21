@@ -1,13 +1,13 @@
-name: CI — iOS plugin build (GDExtension + Swift)
+name: CI — Gomoku plugin build (iOS + macOS GDExtension)
 
-# Builds the GomokuNeural GDExtension as xcframework. Uses godot-cpp
-# (not raw godot source) to sidestep the generated-header dependency
-# chain. Swift sources compile separately via swiftc then combine with
-# the C++/Obj-C++ pieces via libtool.
+# Builds the GomokuNeural GDExtension for iOS (xcframework) and macOS
+# (dylib). Uses godot-cpp (not raw godot source) to sidestep the
+# generated-header dependency chain. Swift sources compile separately
+# via swiftc then combine with the C++/Obj-C++ pieces.
 #
-# Currently returns a hardcoded (7,7) from Swift — no CoreML yet. A
-# green CI proves the full Godot ↔ GDExtension ↔ Swift toolchain. CoreML
-# loading + the ported MCTS are layered on top in subsequent phases.
+# iOS slice ships to TestFlight via ios.yml.
+# macOS slice ships via macos-cd.yml (wired in P3.3 of unification_plan).
+# This workflow is a build-sanity check — green = both slices compile.
 
 on:
   push:
@@ -15,6 +15,7 @@ on:
       - swift-ml-plugin
     paths:
       - 'ios_plugin/**'
+      - 'addons/gomoku_neural/gomoku_neural.gdextension'
       - '.github/workflows/plugin-build.yml'
   workflow_dispatch:
 
@@ -30,9 +31,13 @@ env:
 
 jobs:
   build:
-    name: Build xcframework (device + simulator)
+    name: Build plugin (${{ matrix.platform }})
     runs-on: macos-15
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, macos]
 
     steps:
       - name: Checkout
@@ -70,7 +75,10 @@ jobs:
         with:
           path: |
             ios_plugin/godot-cpp
-          key: godot-cpp-${{ env.GODOT_CPP_REF }}-ios-v2
+          # Separate cache per platform — the bin/ layout differs (ios vs
+          # macos prebuilt libs) and sharing caused false cache hits in
+          # earlier runs.
+          key: godot-cpp-${{ env.GODOT_CPP_REF }}-${{ matrix.platform }}-v3
 
       - name: Clone godot-cpp
         if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
@@ -83,20 +91,30 @@ jobs:
           git submodule update --init --recursive --depth=1 || true
           du -sh .
 
-      - name: Build plugin xcframework
+      - name: Build plugin
         run: |
           set -e
           cd ios_plugin
           chmod +x build.sh
-          ./build.sh
+          ./build.sh ${{ matrix.platform }}
 
-      - name: Upload plugin bundle
-        if: success()
+      - name: Upload plugin bundle (iOS)
+        if: success() && matrix.platform == 'ios'
         uses: actions/upload-artifact@v4
         with:
-          name: gomoku_neural_plugin
+          name: gomoku_neural_plugin_ios
           path: |
             ios_plugin/build/libgomoku_neural.ios.template_release.xcframework
             ios_plugin/build/libgodot-cpp.ios.template_release.xcframework
+            ios_plugin/build/gomoku_neural.gdextension
+          retention-days: 30
+
+      - name: Upload plugin bundle (macOS)
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gomoku_neural_plugin_macos
+          path: |
+            ios_plugin/build/libgomoku_neural.macos.template_release.dylib
             ios_plugin/build/gomoku_neural.gdextension
           retention-days: 30
