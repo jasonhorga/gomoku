@@ -1,5 +1,16 @@
 name: CD — macOS (signed + notarized)
 
+# Post-2026-04-21 unification: Mac .app ships the Swift GomokuNeural
+# plugin + CoreML mlmodelc, same as iOS. No Python subprocess.
+#
+# Build pipeline:
+#   1. Build GomokuNeural plugin for macOS arm64 → libgomoku_neural.macos.template_release.dylib
+#   2. Export best_model.pt → GomokuNet.mlpackage → GomokuNet.mlmodelc
+#   3. Stage both into addons/gomoku_neural/
+#   4. Godot macOS export picks up the addon, bundles into .app
+#   5. build_app.sh wraps + normalizes
+#   6. fastlane signs + notarizes
+
 on:
   push:
     tags:
@@ -17,6 +28,7 @@ concurrency:
 
 env:
   GODOT_VERSION: "4.5.1"
+  GODOT_CPP_REF: "4.5"
 
 jobs:
   build:
@@ -44,6 +56,73 @@ jobs:
           fi
           sudo xcode-select -s "$FOUND_XCODE"
           xcodebuild -version
+
+      # --- Swift plugin build (macOS slice) --------------------------
+
+      - name: Set up Python 3.11 (for SCons + CoreML export)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SCons (for godot-cpp)
+        # PyTorch + coremltools are installed later, only around the
+        # CoreML export step — they're ~2GB and only needed for a
+        # single command.
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install scons
+
+      - name: Cache godot-cpp (macOS)
+        id: cache-godot-cpp
+        uses: actions/cache@v4
+        with:
+          path: ios_plugin/godot-cpp
+          key: godot-cpp-${{ env.GODOT_CPP_REF }}-macos-v3
+
+      - name: Clone godot-cpp
+        if: steps.cache-godot-cpp.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          cd ios_plugin
+          git clone --depth=1 --branch="${GODOT_CPP_REF}" \
+            https://github.com/godotengine/godot-cpp.git godot-cpp
+          cd godot-cpp
+          git submodule update --init --recursive --depth=1 || true
+
+      - name: Build plugin .dylib (macOS)
+        run: |
+          set -e
+          cd ios_plugin
+          chmod +x build.sh
+          ./build.sh macos
+          ls -la build/libgomoku_neural.macos.template_release.dylib
+
+      - name: Stage plugin into addons/
+        run: |
+          set -e
+          cp ios_plugin/build/libgomoku_neural.macos.template_release.dylib \
+             addons/gomoku_neural/
+          ls -la addons/gomoku_neural/
+
+      # --- CoreML model export --------------------------------------
+
+      - name: Convert best_model.pt → GomokuNet.mlmodelc
+        # Mirrors ios.yml: export_coreml.py produces .mlpackage from
+        # best_model.pt, then `xcrun coremlc compile` pre-compiles it
+        # so on-device first-launch doesn't stall. Output is staged
+        # into addons/ so Godot macOS export bundles it with the .app.
+        run: |
+          set -e
+          python3 -m pip install "torch==2.7.*" coremltools numpy
+          cd ai_server
+          python3 export_coreml.py data/weights/best_model.pt \
+              --filters 128 --blocks 6 \
+              -o /tmp/GomokuNet.mlpackage
+          xcrun coremlc compile /tmp/GomokuNet.mlpackage /tmp/
+          cp -R /tmp/GomokuNet.mlmodelc ../addons/gomoku_neural/
+          du -sh ../addons/gomoku_neural/GomokuNet.mlmodelc
+
+      # --- Godot export ---------------------------------------------
 
       - name: Cache Godot + export templates
         id: cache-godot
@@ -77,34 +156,12 @@ jobs:
       - name: Godot import assets
         run: godot --headless --import --quit || true
 
-      - name: Export macOS .app (native, no config errors)
+      - name: Export macOS .app
         run: |
           set -e
           mkdir -p build
           godot --headless --export-release "macOS" build/gomoku_macos.zip
           ls -la build/gomoku_macos.zip
-
-      - name: Ensure ONNX model is present
-        run: |
-          set -e
-          if [ ! -f ai_server/data/weights/model.onnx ] && [ -f ai_server/data/weights/best_model.onnx ]; then
-            cp ai_server/data/weights/best_model.onnx ai_server/data/weights/model.onnx
-          fi
-          ls -la ai_server/data/weights/model.onnx
-
-      - name: Set up Python for AI server build
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Build AI server (pyinstaller)
-        run: |
-          set -e
-          cd ai_server
-          pip install --quiet pyinstaller onnxruntime numpy
-          pyinstaller --clean --noconfirm gomoku_ai_server.spec
-          ls -la dist/gomoku_ai_server
-          file dist/gomoku_ai_server
 
       - name: Inspect Godot macOS export output
         run: |
@@ -117,7 +174,9 @@ jobs:
           # Extract for signing
           rm -rf build/Gomoku.app
           unzip -q build/Gomoku_final.zip -d build/
-          ls -la build/Gomoku.app/Contents/MacOS/
+          ls -la build/Gomoku.app/Contents/Resources/addons/gomoku_neural/ | head -10
+
+      # --- Sign + notarize ------------------------------------------
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

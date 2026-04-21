@@ -14,7 +14,6 @@ config/icon="res://assets/icon_512.png"
 Log="*res://scripts/autoload/logger.gd"
 NetworkManager="*res://scripts/autoload/network_manager.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
-AIServerLauncher="*res://scripts/autoload/ai_server_launcher.gd"
 
 [display]
 

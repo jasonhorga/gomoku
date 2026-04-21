@@ -112,44 +112,7 @@ func test_minimax_depth4_block() -> void:
 	print("  INFO: depth-4 block took %d ms" % elapsed)
 
 
-func test_mcts_win() -> void:
-	print("[MCTS - win]")
-	var ai = load("res://scripts/ai/ai_mcts.gd").new(500)  # fewer sims for test speed
-	var board = _make_board()
-
-	board[5][3] = BLACK
-	board[5][4] = BLACK
-	board[5][5] = BLACK
-	board[5][6] = BLACK
-	board[6][3] = WHITE
-	board[6][4] = WHITE
-	board[6][5] = WHITE
-
-	var start = Time.get_ticks_msec()
-	var move = ai.choose_move(board, BLACK, [])
-	var elapsed = Time.get_ticks_msec() - start
-
-	var wins = (move == Vector2i(5, 7) or move == Vector2i(5, 2))
-	assert_true(wins, "MCTS finds winning move at %s" % str(move))
-	print("  INFO: MCTS(500) took %d ms" % elapsed)
-
-
-func test_mcts_block() -> void:
-	print("[MCTS - block]")
-	var ai = load("res://scripts/ai/ai_mcts.gd").new(500)
-	var board = _make_board()
-
-	board[3][3] = WHITE
-	board[3][4] = WHITE
-	board[3][5] = WHITE
-	board[3][6] = WHITE
-	board[4][4] = BLACK
-	board[4][5] = BLACK
-
-	var start = Time.get_ticks_msec()
-	var move = ai.choose_move(board, BLACK, [])
-	var elapsed = Time.get_ticks_msec() - start
-
-	var blocks = (move == Vector2i(3, 7) or move == Vector2i(3, 2))
-	assert_true(blocks, "MCTS blocks at %s" % str(move))
-	print("  INFO: MCTS(500) block took %d ms" % elapsed)
+# L5 MCTS tests removed 2026-04-21: ai_mcts.gd no longer exists.
+# L5 is now served by the Swift plugin (ai_plugin_wrapper.gd), which
+# can only be tested on iOS / macOS with the compiled Swift code
+# loaded at runtime — not from a GDScript unit test.

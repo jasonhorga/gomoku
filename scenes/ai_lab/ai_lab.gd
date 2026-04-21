@@ -45,7 +45,11 @@ func _create_engine(level_idx: int):
 		1: return load("res://scripts/ai/ai_heuristic.gd").new()
 		2: return load("res://scripts/ai/ai_minimax.gd").new(2)
 		3: return load("res://scripts/ai/ai_minimax.gd").new(4)
-		4: return load("res://scripts/ai/ai_mcts.gd").new(1500)
+		4:
+			# L5 = pattern-MCTS via Swift plugin. Linux editor → degrade to L4.
+			if Engine.has_singleton("GomokuNeural"):
+				return load("res://scripts/ai/ai_plugin_wrapper.gd").new(5)
+			return load("res://scripts/ai/ai_minimax.gd").new(4)
 		5: return load("res://scripts/ai/ai_neural.gd").new()
 		_: return load("res://scripts/ai/ai_random.gd").new()
 

@@ -23,11 +23,10 @@ func _ready() -> void:
 	%Level5.pressed.connect(_select_level.bind(5))
 	%Level6.pressed.connect(_select_level.bind(6))
 
-	# L6 on iOS now runs through the GomokuNeural plugin (CoreML-backed
-	# hybrid MCTS, same architecture as Mac Python onnx_server). The
-	# hide-on-mobile rule only applies if the native plugin isn't there.
-	if (OS.has_feature("mobile") or OS.get_name() == "iOS") \
-			and not Engine.has_singleton("GomokuNeural"):
+	# L6 runs through the GomokuNeural plugin (CoreML-backed hybrid MCTS
+	# on both iOS and macOS after the 2026-04-21 unification). Hide only
+	# on platforms where the plugin isn't available (e.g. Linux editor).
+	if not Engine.has_singleton("GomokuNeural"):
 		%Level6.visible = false
 		if selected_level == 6:
 			selected_level = 5
@@ -69,11 +68,12 @@ func _create_engine():
 		4:
 			return load("res://scripts/ai/ai_minimax.gd").new(4)
 		5:
-			# iPhone memory is tight; 3000 sims allocates a very large tree
-			# every move. Drop to 1500 on mobile — still strong, and survives
-			# 50+ move games without OOM.
-			var mobile := OS.has_feature("mobile") or OS.get_name() == "iOS"
-			return load("res://scripts/ai/ai_mcts.gd").new(1500 if mobile else 3000)
+			# L5 = pattern-MCTS via Swift plugin (iOS + macOS). Platforms
+			# without the plugin (e.g. Linux editor) fall through to L4
+			# since we no longer maintain a GDScript MCTS.
+			if Engine.has_singleton("GomokuNeural"):
+				return load("res://scripts/ai/ai_plugin_wrapper.gd").new(5)
+			return load("res://scripts/ai/ai_minimax.gd").new(4)
 		6:
 			return load("res://scripts/ai/ai_neural.gd").new()
 		_:

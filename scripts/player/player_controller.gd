@@ -2,7 +2,7 @@ extends RefCounted
 
 signal move_decided(row: int, col: int)
 
-enum Type { LOCAL_HUMAN, REMOTE_NETWORK, LOCAL_AI, REMOTE_AI }
+enum Type { LOCAL_HUMAN, REMOTE_NETWORK, LOCAL_AI }
 
 var player_type: Type
 var color: int  # GameLogic.BLACK or GameLogic.WHITE
