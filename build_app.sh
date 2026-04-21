@@ -45,6 +45,21 @@ if [ "$(basename "$EXPORTED_APP")" != "Gomoku.app" ]; then
 fi
 APP="$TMPDIR/Gomoku.app"
 
+# GomokuNet.mlmodelc is a directory (CoreML compiled model). Godot's
+# macOS export only bundles file-type resources, not directory-shaped
+# ones, so we copy it in manually from the staged addons/ location.
+# CoreMLAdapter.swift finds it via Bundle.main.url(forResource:) which
+# searches Contents/Resources by default.
+STAGED_MLMODEL="addons/gomoku_neural/GomokuNet.mlmodelc"
+if [ -d "$STAGED_MLMODEL" ]; then
+    cp -R "$STAGED_MLMODEL" "$APP/Contents/Resources/"
+    echo "  ✓ Copied $STAGED_MLMODEL → Contents/Resources/"
+else
+    echo "⚠️  Staged mlmodelc not found: $STAGED_MLMODEL"
+    echo "    Did the 'Convert best_model.pt → mlmodelc' step run?"
+    exit 1
+fi
+
 # Godot names the main binary after config/name too — normalize to "Gomoku"
 MAIN_BIN=$(ls "$APP/Contents/MacOS/" | head -1)
 if [ -n "$MAIN_BIN" ] && [ "$MAIN_BIN" != "Gomoku" ]; then
