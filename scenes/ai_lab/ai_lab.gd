@@ -84,16 +84,32 @@ func _run_next_batch_game() -> void:
 			_GameRecord.list_records().size()]
 		return
 
-	# Use black/white level selections so batch mode can compare different levels.
-	# (For self-play / weight training, just set both dropdowns to the same level.)
-	var engine_b = _create_engine(black_level.selected)
-	var engine_w = _create_engine(white_level.selected)
+	# Color alternation: on odd-indexed games, swap the two selected
+	# engines so each side plays both black (first-move advantage) and
+	# white. Without this, a batch comparing L4 vs L5 sees L5 as white
+	# for every game and first-move bias dominates the score.
+	var swap_colors: bool = (batch_done % 2 == 1)
+	var engine_b
+	var engine_w
+	if swap_colors:
+		engine_b = _create_engine(white_level.selected)
+		engine_w = _create_engine(black_level.selected)
+	else:
+		engine_b = _create_engine(black_level.selected)
+		engine_w = _create_engine(white_level.selected)
 
 	# Run a headless game using game logic directly
 	var logic = _GameLogic.new()
 	var current = _GameLogic.BLACK
 
 	while not logic.game_over:
+		# Yield each turn — a single choose_move can run ~0.5-3s on
+		# iPhone, and 20-move games × synchronous calls used to starve
+		# the main thread for ~10s. iOS's scene-update watchdog fires
+		# 0x8BADF00D at 10s while backgrounded; after this yield we
+		# process a frame per move so the OS stays happy.
+		await get_tree().process_frame
+
 		var board_copy: Array = []
 		for row in logic.board:
 			board_copy.append(row.duplicate())
@@ -121,13 +137,27 @@ func _run_next_batch_game() -> void:
 	var path = _GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
 	_GameRecord.save_to_file(record, path)
 
-	if logic.winner == _GameLogic.BLACK:
-		batch_wins_b += 1
-	elif logic.winner == _GameLogic.WHITE:
-		batch_wins_w += 1
+	# Attribute the win to the SELECTED dropdown level, not the board
+	# colour, so the tally is meaningful when colors alternate each game.
+	# batch_wins_b = wins by the engine in the "Black" dropdown;
+	# batch_wins_w = wins by the engine in the "White" dropdown.
+	var winner_is_black_level: bool
+	if swap_colors:
+		winner_is_black_level = (logic.winner == _GameLogic.WHITE)
+	else:
+		winner_is_black_level = (logic.winner == _GameLogic.BLACK)
+	if logic.winner != _GameLogic.EMPTY:
+		if winner_is_black_level:
+			batch_wins_b += 1
+		else:
+			batch_wins_w += 1
 
 	batch_done += 1
-	stats_label.text = "Batch: %d/%d (B:%d W:%d)" % [batch_done, batch_total, batch_wins_b, batch_wins_w]
+	stats_label.text = "Batch: %d/%d (%s:%d %s:%d)" % [
+		batch_done, batch_total,
+		LEVEL_NAMES[black_level.selected], batch_wins_b,
+		LEVEL_NAMES[white_level.selected], batch_wins_w
+	]
 
 	# Use call_deferred to avoid stack overflow and allow UI updates
 	_run_next_batch_game.call_deferred()
