@@ -3,21 +3,35 @@ extends Control
 const _GameLogic = preload("res://scripts/game_logic.gd")
 const _GameRecord = preload("res://scripts/data/game_record.gd")
 
-const LEVEL_NAMES: Array[String] = ["L1 Random", "L2 Heuristic", "L3 Minimax", "L4 Minimax+", "L5 MCTS", "L6 Neural"]
+const LEVEL_NAMES: Array[String] = ["L1 Random ★", "L2 Heuristic ★★", "L3 Minimax ★★★", "L4 Minimax+ ★★★★", "L5 MCTS ★★★★", "L6 Neural ★★★★★"]
 const SPEED_NAMES: Array[String] = ["Instant", "Fast", "Normal", "Slow"]
 const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
+
+# Fixed 3-move openings for benchmark mode. Each opening is [B, W, B];
+# AIs play from move 4 onward. With colour alternation, 5 openings × 2
+# colours = 10 unique games per batch cycle, breaking MCTS determinism
+# without weakening play (each engine still picks argmax-by-visits).
+const OPENINGS: Array = [
+	[Vector2i(7,7), Vector2i(7,8), Vector2i(8,8)],
+	[Vector2i(7,7), Vector2i(7,8), Vector2i(5,7)],
+	[Vector2i(7,7), Vector2i(8,8), Vector2i(8,7)],
+	[Vector2i(7,7), Vector2i(6,9), Vector2i(8,8)],
+	[Vector2i(7,7), Vector2i(5,5), Vector2i(8,7)],
+]
 
 @onready var black_level: OptionButton = %BlackLevel
 @onready var white_level: OptionButton = %WhiteLevel
 @onready var speed_slider: HSlider = %SpeedSlider
 @onready var speed_text: Label = %SpeedText
 @onready var stats_label: Label = %StatsLabel
+@onready var standard_openings_check: CheckButton = %StandardOpenings
 
 var batch_running: bool = false
 var batch_total: int = 0
 var batch_done: int = 0
 var batch_wins_b: int = 0
 var batch_wins_w: int = 0
+var use_standard_openings: bool = false
 
 
 func _ready() -> void:
@@ -28,6 +42,7 @@ func _ready() -> void:
 	white_level.selected = 4  # L5 MCTS
 
 	speed_slider.value_changed.connect(_on_speed_changed)
+	standard_openings_check.toggled.connect(func(p): use_standard_openings = p)
 	%WatchButton.pressed.connect(_on_watch_pressed)
 	%RunBatchButton.pressed.connect(_on_run_batch_pressed)
 	%BackButton.pressed.connect(_on_back_pressed)
@@ -84,11 +99,18 @@ func _run_next_batch_game() -> void:
 			_GameRecord.list_records().size()]
 		return
 
-	# Color alternation: on odd-indexed games, swap the two selected
-	# engines so each side plays both black (first-move advantage) and
-	# white. Without this, a batch comparing L4 vs L5 sees L5 as white
-	# for every game and first-move bias dominates the score.
-	var swap_colors: bool = (batch_done % 2 == 1)
+	# Colour alternation. In default mode, swap every other game. In
+	# standard-openings mode, swap once per opening cycle so each opening
+	# is played twice (B as engine_b, then B as engine_w) before moving
+	# to the next opening.
+	var swap_colors: bool = false
+	var opening_idx: int = -1
+	if use_standard_openings:
+		opening_idx = batch_done % OPENINGS.size()
+		swap_colors = (batch_done / OPENINGS.size()) % 2 == 1
+	else:
+		swap_colors = (batch_done % 2 == 1)
+
 	var engine_b
 	var engine_w
 	if swap_colors:
@@ -101,6 +123,14 @@ func _run_next_batch_game() -> void:
 	# Run a headless game using game logic directly
 	var logic = _GameLogic.new()
 	var current = _GameLogic.BLACK
+
+	# Inject the fixed opening (3 moves) so MCTS determinism doesn't
+	# collapse the batch to 2 unique games. After [B, W, B] it's white's
+	# turn — engines take over from move 4.
+	if opening_idx >= 0:
+		for m in OPENINGS[opening_idx]:
+			logic.place_stone(m.x, m.y)
+		current = _GameLogic.WHITE
 
 	while not logic.game_over:
 		# Yield each turn — a single choose_move can run ~0.5-3s on

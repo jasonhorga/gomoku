@@ -51,7 +51,7 @@ func _update_ui() -> void:
 	black_btn.text = ">> Black" if selected_color == _GameLogic.BLACK else "Black"
 	white_btn.text = ">> White" if selected_color == _GameLogic.WHITE else "White"
 
-	var level_names: Array[String] = ["Level 1 - Random", "Level 2 - Heuristic", "Level 3 - Minimax", "Level 4 - Minimax+", "Level 5 - MCTS", "Level 6 - Neural Net"]
+	var level_names: Array[String] = ["Level 1 Random ★", "Level 2 Heuristic ★★", "Level 3 Minimax ★★★", "Level 4 Minimax+ ★★★★", "Level 5 MCTS ★★★★", "Level 6 Neural ★★★★★"]
 	for i in range(level_btns.size()):
 		var prefix: String = ">> " if selected_level == (i + 1) else ""
 		level_btns[i].text = prefix + level_names[i]
