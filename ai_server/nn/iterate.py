@@ -71,6 +71,79 @@ def _winner_char(w):
 # Self-play with a CNN-guided engine (sequential; models don't pickle cleanly)
 # --------------------------------------------------------------------------
 
+def play_game_vs_opponent(model, opponent_engine, cnn_plays_black,
+                          simulations, seed=None, vcf_depth=6,
+                          random_opening_plies=4, max_moves=150,
+                          cnn_prior_weight=0.5):
+    """Play one game CNN+MCTS vs `opponent_engine`. Only CNN's moves
+    contribute training samples — opponent's moves are not what the
+    policy network should imitate.
+
+    Used for adversarial training data: opponent_engine is Pattern-MCTS
+    or full L4 minimax. The CNN learns to defend against opponent
+    styles it doesn't naturally produce in pure self-play.
+
+    Returns (samples, winner, num_moves) — same shape as play_game_cnn,
+    but `samples` only contains positions where it was CNN's turn.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+        random.seed(seed)
+
+    game = GameLogic()
+    _random_opening(game, num_plies=random_opening_plies)
+
+    cnn_color = BLACK if cnn_plays_black else WHITE
+    mcts = MCTSEngine(
+        simulations=simulations,
+        nn_model=model,
+        use_pattern_prior=True,
+        dirichlet_alpha=0.3,
+        dirichlet_eps=0.25,
+        vcf_depth=vcf_depth,
+        cnn_prior_weight=cnn_prior_weight,
+    )
+
+    history = []
+    while not game.game_over and len(game.move_history) < max_moves:
+        if game.current_player == cnn_color:
+            probs = mcts.get_move_probabilities(game)
+            tensor = game.to_tensor_9ch(game.current_player)
+            history.append((tensor, probs.copy(), game.current_player))
+
+            move_idx = _sample_move(probs, len(game.move_history))
+            row, col = move_idx // BOARD_SIZE, move_idx % BOARD_SIZE
+            if not game.place_stone(row, col):
+                valid = game.get_valid_moves()
+                if not valid:
+                    break
+                row, col = valid[0]
+                game.place_stone(row, col)
+        else:
+            row, col = opponent_engine.choose_move(game)
+            if not game.place_stone(row, col):
+                # Opponent gave illegal move — fallback to first valid
+                valid = game.get_valid_moves()
+                if not valid:
+                    break
+                row, col = valid[0]
+                game.place_stone(row, col)
+
+    samples = []
+    for tensor, probs, player in history:
+        if game.winner == EMPTY:
+            value = 0.0
+        elif game.winner == player:
+            value = 1.0
+        else:
+            value = -1.0
+        samples.append((tensor, probs, value))
+
+    # Return total game length so log lines match self-play games' notion
+    # of "moves". The number of CNN training samples is len(samples).
+    return samples, game.winner, len(game.move_history)
+
+
 def play_game_cnn(model, simulations, seed=None, vcf_depth=6,
                   random_opening_plies=4, max_moves=100,
                   cnn_prior_weight=0.5):
@@ -190,25 +263,88 @@ def run_one_iteration(model, iter_idx, args, bootstrap_pool, fresh_pool, logger)
     logger.info(f"  Iteration {iter_idx}/{args.iterations}")
     logger.info(f"{'='*60}")
 
-    # --- Self-play --------------------------------------------------
-    logger.info(f"[{iter_idx}a] Self-play: {args.games_per_iter} games, "
+    # --- Self-play (mixed opponents) -------------------------------
+    # Opponent mix (default Path A v2):
+    #   self_frac:    CNN+MCTS vs CNN+MCTS — both moves contribute.
+    #   pattern_frac: CNN+MCTS vs Pattern-MCTS — only CNN moves contribute.
+    #   advers_frac:  CNN+MCTS vs L4 minimax — only CNN moves contribute.
+    # The minimax slice teaches the network to defend against deep
+    # multi-threat fork attacks that pure self-play rarely produces.
+    self_frac = max(0.0, 1.0 - getattr(args, 'pattern_frac', 0.0)
+                    - getattr(args, 'adversarial_frac', 0.0))
+    n_self = int(args.games_per_iter * self_frac)
+    n_pattern = int(args.games_per_iter * getattr(args, 'pattern_frac', 0.0))
+    n_advers = args.games_per_iter - n_self - n_pattern
+
+    logger.info(f"[{iter_idx}a] Self-play: {args.games_per_iter} games "
+                f"(self={n_self}, pattern={n_pattern}, minimax={n_advers}), "
                 f"{args.simulations} sims, CNN priors")
     raw = []
     winners = {BLACK: 0, WHITE: 0, EMPTY: 0}
     t0 = time.time()
-    for g in range(args.games_per_iter):
+    cpw = getattr(args, 'cnn_prior_weight', 0.5)
+
+    # Build opponent engines once (reused across games, but L4 minimax
+    # already clears its TT per-call so this is safe).
+    pattern_opp = MCTSEngine(
+        simulations=args.simulations, nn_model=None,
+        use_pattern_prior=True, dirichlet_alpha=0.0,
+        vcf_depth=args.vcf_depth,
+    ) if n_pattern > 0 else None
+    minimax_opp = None
+    if n_advers > 0:
+        from ai.minimax_engine import MinimaxEngine
+        minimax_opp = MinimaxEngine(depth=4)
+
+    g = 0
+    # 1. Pure self-play
+    for _ in range(n_self):
         samples, winner, moves = play_game_cnn(
             model,
             simulations=args.simulations,
             seed=iter_idx * 10007 + g,
             vcf_depth=args.vcf_depth,
-            cnn_prior_weight=getattr(args, 'cnn_prior_weight', 0.5),
+            cnn_prior_weight=cpw,
         )
         raw.extend(samples)
         winners[winner] += 1
-        logger.info(f"  iter{iter_idx} game {g+1}/{args.games_per_iter}: "
+        logger.info(f"  iter{iter_idx} game {g+1}/{args.games_per_iter} [self]: "
                     f"winner={_winner_char(winner)} moves={moves} "
                     f"samples={len(samples)}")
+        g += 1
+    # 2. Vs Pattern-MCTS (CNN moves only)
+    for i in range(n_pattern):
+        samples, winner, moves = play_game_vs_opponent(
+            model, pattern_opp,
+            cnn_plays_black=(i % 2 == 0),
+            simulations=args.simulations,
+            seed=iter_idx * 10007 + g,
+            vcf_depth=args.vcf_depth,
+            cnn_prior_weight=cpw,
+        )
+        raw.extend(samples)
+        winners[winner] += 1
+        logger.info(f"  iter{iter_idx} game {g+1}/{args.games_per_iter} [pattern]: "
+                    f"winner={_winner_char(winner)} moves={moves} "
+                    f"cnn_samples={len(samples)}")
+        g += 1
+    # 3. Vs L4 minimax (CNN moves only) — the adversarial slice
+    for i in range(n_advers):
+        samples, winner, moves = play_game_vs_opponent(
+            model, minimax_opp,
+            cnn_plays_black=(i % 2 == 0),
+            simulations=args.simulations,
+            seed=iter_idx * 10007 + g,
+            vcf_depth=args.vcf_depth,
+            cnn_prior_weight=cpw,
+        )
+        raw.extend(samples)
+        winners[winner] += 1
+        logger.info(f"  iter{iter_idx} game {g+1}/{args.games_per_iter} [minimax]: "
+                    f"winner={_winner_char(winner)} moves={moves} "
+                    f"cnn_samples={len(samples)}")
+        g += 1
+
     sp_elapsed = time.time() - t0
     logger.info(f"  self-play done: {len(raw)} raw samples in "
                 f"{sp_elapsed:.1f}s (B={winners[BLACK]} W={winners[WHITE]} "
@@ -446,6 +582,17 @@ def main():
                    help="Max fresh pool size as multiple of bootstrap pool")
     p.add_argument("--checkpoint-prefix", default="",
                    help="Prefix for checkpoint filenames (e.g. 'phA_')")
+    p.add_argument("--pattern-frac", type=float, default=0.0,
+                   help="Fraction of self-play games CNN+MCTS plays vs "
+                        "pure Pattern-MCTS opponent (only CNN moves "
+                        "contribute to training data)")
+    p.add_argument("--adversarial-frac", type=float, default=0.0,
+                   help="Fraction of self-play games CNN+MCTS plays vs "
+                        "L4 minimax (TT + iterative deepening). The CNN "
+                        "learns to defend against deep multi-threat fork "
+                        "attacks that pure self-play rarely produces. "
+                        "Recommended: 0.2 to fix the L6 vs L4 fork "
+                        "weakness identified in 2026-04-25 testing.")
     p.add_argument("--log-file", default="iterate.log")
     args = p.parse_args()
     sys.exit(iterate_train(args))
