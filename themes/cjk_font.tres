@@ -1,5 +1,0 @@
-[gd_resource type="SystemFont" format=3 uid="uid://cjkfont01"]
-
-[resource]
-font_names = PackedStringArray("PingFang SC", "Heiti SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans CJK", "Helvetica", "Arial", "sans-serif")
-allow_system_fallback = true

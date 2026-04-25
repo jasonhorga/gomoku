@@ -24,7 +24,7 @@ window/stretch/aspect="expand"
 
 [gui]
 
-theme/custom_font="res://themes/cjk_font.tres"
+theme/custom_font="res://assets/fonts/cjk_subset.otf"
 
 [rendering]
 
