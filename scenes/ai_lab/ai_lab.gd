@@ -3,8 +3,8 @@ extends Control
 const _GameLogic = preload("res://scripts/game_logic.gd")
 const _GameRecord = preload("res://scripts/data/game_record.gd")
 
-const LEVEL_NAMES: Array[String] = ["L1 Random ★", "L2 Heuristic ★★", "L3 Minimax ★★★", "L4 Minimax+ ★★★★", "L5 MCTS ★★★★", "L6 Neural ★★★★★"]
-const SPEED_NAMES: Array[String] = ["Instant", "Fast", "Normal", "Slow"]
+const LEVEL_NAMES: Array[String] = ["L1 随机 ★", "L2 启发 ★★", "L3 搜索 ★★★", "L4 强搜索 ★★★★", "L5 蒙特卡洛 ★★★★", "L6 神经网络 ★★★★★"]
+const SPEED_NAMES: Array[String] = ["即时", "快", "普通", "慢"]
 const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 
 @onready var black_level: OptionButton = %BlackLevel
@@ -71,7 +71,7 @@ func _on_run_batch_pressed() -> void:
 	batch_wins_b = 0
 	batch_wins_w = 0
 	%RunBatchButton.disabled = true
-	stats_label.text = "Batch: 0/%d..." % batch_total
+	stats_label.text = "批量进度：0/%d..." % batch_total
 	_run_next_batch_game()
 
 
@@ -79,7 +79,7 @@ func _run_next_batch_game() -> void:
 	if batch_done >= batch_total:
 		batch_running = false
 		%RunBatchButton.disabled = false
-		stats_label.text = "Batch done: B=%d W=%d D=%d | Total records: %d" % [
+		stats_label.text = "完成：黑=%d 白=%d 平=%d | 总记录：%d" % [
 			batch_wins_b, batch_wins_w, batch_total - batch_wins_b - batch_wins_w,
 			_GameRecord.list_records().size()]
 		return
@@ -153,7 +153,7 @@ func _run_next_batch_game() -> void:
 			batch_wins_w += 1
 
 	batch_done += 1
-	stats_label.text = "Batch: %d/%d (%s:%d %s:%d)" % [
+	stats_label.text = "进度：%d/%d (%s:%d %s:%d)" % [
 		batch_done, batch_total,
 		LEVEL_NAMES[black_level.selected], batch_wins_b,
 		LEVEL_NAMES[white_level.selected], batch_wins_w
@@ -166,7 +166,7 @@ func _run_next_batch_game() -> void:
 
 func _update_stats() -> void:
 	var count = _GameRecord.list_records().size()
-	stats_label.text = "Records: %d | Ready" % count
+	stats_label.text = "记录：%d | 就绪" % count
 
 
 func _on_back_pressed() -> void:

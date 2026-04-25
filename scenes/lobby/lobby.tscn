@@ -39,7 +39,7 @@ theme_override_constants/separation = 20
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Waiting for opponent..."
+text = "等待对手中..."
 horizontal_alignment = 1
 
 [node name="InfoLabel" type="Label" parent="VBoxContainer"]
@@ -61,4 +61,4 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "Cancel"
+text = "取消"

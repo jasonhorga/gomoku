@@ -12,14 +12,14 @@ func _ready() -> void:
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 
 	if NetworkManager.is_host:
-		waiting_label.text = "Waiting for opponent..."
-		info_label.text = "You are: Black (first move)"
+		waiting_label.text = "等待对手中..."
+		info_label.text = "你执：黑棋（先手）"
 		var ip: String = NetworkManager.get_local_ip()
-		ip_info_label.text = "Your IP: %s  Port: %d" % [ip, NetworkManager.PORT]
+		ip_info_label.text = "你的 IP：%s  端口：%d" % [ip, NetworkManager.PORT]
 		ip_info_label.visible = true
 	else:
-		waiting_label.text = "Connected! Starting game..."
-		info_label.text = "You are: White"
+		waiting_label.text = "已连接！正在开始..."
+		info_label.text = "你执：白棋"
 		ip_info_label.visible = false
 
 
@@ -33,7 +33,7 @@ func _on_cancel_pressed() -> void:
 
 
 func _on_player_disconnected(_id: int) -> void:
-	waiting_label.text = "Opponent disconnected."
+	waiting_label.text = "对手已断开"
 	waiting_label.add_theme_color_override("font_color", Color.RED)
 
 

@@ -38,7 +38,7 @@ theme_override_constants/separation = 12
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "AI Laboratory"
+text = "AI 实验室"
 horizontal_alignment = 1
 
 [node name="Sep1" type="HSeparator" parent="VBoxContainer"]
@@ -50,7 +50,7 @@ theme_override_constants/separation = 10
 
 [node name="BlackLabel" type="Label" parent="VBoxContainer/MatchRow"]
 layout_mode = 2
-text = "Black:"
+text = "黑棋："
 
 [node name="BlackLevel" type="OptionButton" parent="VBoxContainer/MatchRow"]
 unique_name_in_owner = true
@@ -59,7 +59,7 @@ size_flags_horizontal = 3
 
 [node name="WhiteLabel" type="Label" parent="VBoxContainer/MatchRow"]
 layout_mode = 2
-text = "White:"
+text = "白棋："
 
 [node name="WhiteLevel" type="OptionButton" parent="VBoxContainer/MatchRow"]
 unique_name_in_owner = true
@@ -72,7 +72,7 @@ theme_override_constants/separation = 10
 
 [node name="SpeedLabel" type="Label" parent="VBoxContainer/SpeedRow"]
 layout_mode = 2
-text = "Speed:"
+text = "观看速度："
 
 [node name="SpeedSlider" type="HSlider" parent="VBoxContainer/SpeedRow"]
 unique_name_in_owner = true
@@ -87,7 +87,7 @@ value = 1.0
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(60, 0)
-text = "Fast"
+text = "快"
 
 [node name="ActionRow" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -99,7 +99,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 44)
 theme_override_font_sizes/font_size = 16
-text = "Watch Match"
+text = "观看对局"
 
 [node name="RunBatchButton" type="Button" parent="VBoxContainer/ActionRow"]
 unique_name_in_owner = true
@@ -107,7 +107,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 44)
 theme_override_font_sizes/font_size = 16
-text = "Run Batch"
+text = "批量运行"
 
 [node name="BatchRow" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -116,7 +116,7 @@ alignment = 1
 
 [node name="GamesLabel" type="Label" parent="VBoxContainer/BatchRow"]
 layout_mode = 2
-text = "Batch games:"
+text = "批量局数："
 
 [node name="GamesSpinBox" type="SpinBox" parent="VBoxContainer/BatchRow"]
 unique_name_in_owner = true
@@ -131,7 +131,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.76, 0.6, 0.42, 1)
-text = "Records: 0 | Ready"
+text = "记录：0 | 就绪"
 horizontal_alignment = 1
 autowrap_mode = 2
 
@@ -143,4 +143,4 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
-text = "Back to Menu"
+text = "返回菜单"

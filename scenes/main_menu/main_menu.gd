@@ -40,25 +40,25 @@ func _on_host_pressed() -> void:
 		GameManager.setup_online(NetworkManager.my_player_color)
 		get_tree().change_scene_to_file("res://scenes/lobby/lobby.tscn")
 	else:
-		status_label.text = "Failed to create server. Port may be in use."
+		status_label.text = "服务器创建失败，端口可能被占用"
 		status_label.add_theme_color_override("font_color", Color.RED)
 
 
 func _on_join_pressed() -> void:
 	var ip: String = ip_input.text.strip_edges()
 	if ip.is_empty():
-		status_label.text = "Please enter an IP address."
+		status_label.text = "请输入 IP 地址"
 		status_label.add_theme_color_override("font_color", Color.RED)
 		return
 	if NetworkManager.join_game(ip):
 		GameManager.setup_online(NetworkManager.my_player_color)
-		status_label.text = "Connecting..."
+		status_label.text = "连接中..."
 		status_label.add_theme_color_override("font_color", Color.YELLOW)
 		host_button.disabled = true
 		join_button.disabled = true
 		NetworkManager.game_start_ready.connect(_on_game_start, CONNECT_ONE_SHOT)
 	else:
-		status_label.text = "Failed to connect."
+		status_label.text = "连接失败"
 		status_label.add_theme_color_override("font_color", Color.RED)
 
 
@@ -71,7 +71,7 @@ func _on_ai_lab_pressed() -> void:
 
 
 func _on_connection_failed() -> void:
-	status_label.text = "Connection failed. Check the IP and try again."
+	status_label.text = "连接失败，请检查 IP 后重试"
 	status_label.add_theme_color_override("font_color", Color.RED)
 	host_button.disabled = false
 	join_button.disabled = false

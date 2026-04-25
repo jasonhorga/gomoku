@@ -57,21 +57,21 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "Local PvP"
+text = "本地双人"
 
 [node name="VsAiButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "VS AI"
+text = "人机对战"
 
 [node name="OnlineButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "Online Multiplayer"
+text = "联机对战"
 
 [node name="OnlinePanel" type="VBoxContainer" parent="VBoxContainer"]
 unique_name_in_owner = true
@@ -84,7 +84,7 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
-text = "Host Game"
+text = "创建房间"
 
 [node name="JoinContainer" type="HBoxContainer" parent="VBoxContainer/OnlinePanel"]
 layout_mode = 2
@@ -96,28 +96,28 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 14
-placeholder_text = "Enter IP Address"
+placeholder_text = "输入 IP 地址"
 
 [node name="JoinButton" type="Button" parent="VBoxContainer/OnlinePanel/JoinContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(100, 40)
 theme_override_font_sizes/font_size = 16
-text = "Join"
+text = "加入"
 
 [node name="AiLabButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "AI Laboratory"
+text = "AI 实验室"
 
 [node name="QuitButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 45)
 theme_override_font_sizes/font_size = 18
-text = "Quit"
+text = "退出"
 
 [node name="StatusLabel" type="Label" parent="."]
 unique_name_in_owner = true

@@ -38,22 +38,22 @@ func _configure_for_mode() -> void:
 	match GameManager.mode:
 		GameManager.GameMode.ONLINE:
 			_update_color_label()
-			resign_button.text = "Resign"
+			resign_button.text = "认输"
 			NetworkManager.player_disconnected.connect(_on_player_disconnected)
 		GameManager.GameMode.LOCAL_PVP:
 			color_label.text = ""
-			resign_button.text = "New Game"
+			resign_button.text = "新对局"
 		GameManager.GameMode.VS_AI:
 			_update_color_label()
-			resign_button.text = "Resign"
+			resign_button.text = "认输"
 		GameManager.GameMode.AI_VS_AI:
 			# Show which engines are fighting — before this just said
 			# "AI vs AI", which made it impossible to tell L4 vs L6
 			# from L5 vs L1 at a glance.
-			color_label.text = "%s (Black) vs %s (White)" % [
+			color_label.text = "%s（黑）vs %s（白）" % [
 				_friendly_engine_name(0), _friendly_engine_name(1)
 			]
-			resign_button.text = "Stop"
+			resign_button.text = "停止"
 
 
 func _update_color_label() -> void:
@@ -62,9 +62,9 @@ func _update_color_label() -> void:
 	var opponent_idx := 1 if GameManager.my_color == _GameLogic.BLACK else 0
 	var opp_name := _friendly_engine_name(opponent_idx)
 	if GameManager.my_color == _GameLogic.BLACK:
-		color_label.text = "You: Black \u25cf  vs  %s" % opp_name
+		color_label.text = "\u4f60\u6267\u9ed1 \u25cf  vs  %s" % opp_name
 	else:
-		color_label.text = "You: White \u25cb  vs  %s" % opp_name
+		color_label.text = "\u4f60\u6267\u767d \u25cb  vs  %s" % opp_name
 
 
 func _friendly_engine_name(player_idx: int) -> String:
@@ -74,76 +74,76 @@ func _friendly_engine_name(player_idx: int) -> String:
 	if "ai_engine" in p and p.ai_engine != null and p.ai_engine.has_method("get_name"):
 		return p.ai_engine.get_name()
 	# Human / no engine: just say which side.
-	return "Human" if p.player_type == _PlayerController.Type.LOCAL_HUMAN else "AI"
+	return "玩家" if p.player_type == _PlayerController.Type.LOCAL_HUMAN else "AI"
 
 
 func _on_turn_changed(_is_my_turn: bool) -> void:
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
 			if GameManager.logic.current_player == _GameLogic.BLACK:
-				turn_label.text = "\u25b6 Black's Turn"
+				turn_label.text = "\u25b6 \u9ed1\u65b9\u56de\u5408"
 			else:
-				turn_label.text = "\u25b6 White's Turn"
+				turn_label.text = "\u25b6 \u767d\u65b9\u56de\u5408"
 			turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 		GameManager.GameMode.VS_AI:
 			if _is_my_turn:
-				turn_label.text = "\u25b6 Your Turn"
+				turn_label.text = "\u25b6 \u4f60\u7684\u56de\u5408"
 				turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 			else:
-				turn_label.text = "AI Thinking..."
+				turn_label.text = "AI \u601d\u8003\u4e2d..."
 				turn_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		GameManager.GameMode.AI_VS_AI:
 			if GameManager.logic.current_player == _GameLogic.BLACK:
-				turn_label.text = "Black AI..."
+				turn_label.text = "\u9ed1\u65b9 AI..."
 			else:
-				turn_label.text = "White AI..."
+				turn_label.text = "\u767d\u65b9 AI..."
 			turn_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		_:  # ONLINE
 			if _is_my_turn:
-				turn_label.text = "\u25b6 Your Turn"
+				turn_label.text = "\u25b6 \u4f60\u7684\u56de\u5408"
 				turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 			else:
-				turn_label.text = "Opponent's Turn"
+				turn_label.text = "\u5bf9\u624b\u56de\u5408"
 				turn_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 
 
 func _on_stone_placed(_row: int, _col: int, _color: int) -> void:
-	move_label.text = "Move: %d" % GameManager.logic.move_history.size()
+	move_label.text = "步数：%d" % GameManager.logic.move_history.size()
 
 
 func _on_game_ended(winner: int) -> void:
 	game_over_panel.visible = true
 	play_again_button.visible = true
-	play_again_button.text = "Play Again"
+	play_again_button.text = "再来一局"
 	play_again_button.disabled = false
 
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
 			if winner == _GameLogic.EMPTY:
-				result_label.text = "Draw!"
+				result_label.text = "平局！"
 				result_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 			elif winner == _GameLogic.BLACK:
-				result_label.text = "Black Wins!"
+				result_label.text = "黑方获胜！"
 				result_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 			else:
-				result_label.text = "White Wins!"
+				result_label.text = "白方获胜！"
 				result_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 		_:  # ONLINE, VS_AI
 			if winner == _GameLogic.EMPTY:
-				result_label.text = "Draw!"
+				result_label.text = "平局！"
 				result_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 			elif winner == GameManager.my_color:
-				result_label.text = "You Win!"
+				result_label.text = "你赢了！"
 				result_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 			else:
-				result_label.text = "You Lose"
+				result_label.text = "你输了"
 				result_label.add_theme_color_override("font_color", Color(0.8, 0.2, 0.2))
 
 
 func _on_game_reset() -> void:
 	game_over_panel.visible = false
 	reset_request_panel.visible = false
-	move_label.text = "Move: 0"
+	move_label.text = "步数：0"
 
 
 func _on_resign_pressed() -> void:
@@ -169,7 +169,7 @@ func _on_resign_pressed() -> void:
 
 func _on_play_again_pressed() -> void:
 	if GameManager.mode == GameManager.GameMode.ONLINE:
-		play_again_button.text = "Waiting..."
+		play_again_button.text = "等待中..."
 		play_again_button.disabled = true
 		GameManager.request_reset()
 	else:
@@ -199,6 +199,6 @@ func _on_decline_reset() -> void:
 
 func _on_player_disconnected(_id: int) -> void:
 	game_over_panel.visible = true
-	result_label.text = "Opponent Disconnected"
+	result_label.text = "对手已断开"
 	result_label.add_theme_color_override("font_color", Color.RED)
 	play_again_button.visible = false

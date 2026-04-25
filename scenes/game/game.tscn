@@ -64,21 +64,21 @@ theme_override_constants/separation = 15
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Your Turn"
+text = "你的回合"
 
 [node name="ColorLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(0.76, 0.6, 0.42, 1)
-text = "You: Black"
+text = "你执黑棋"
 
 [node name="MoveLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "Move: 0"
+text = "步数：0"
 
 [node name="Spacer" type="Control" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
 layout_mode = 2
@@ -89,7 +89,7 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
-text = "Resign"
+text = "认输"
 
 [node name="GameOverPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
@@ -115,7 +115,7 @@ theme_override_constants/separation = 15
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "You Win!"
+text = "你赢了！"
 horizontal_alignment = 1
 
 [node name="PlayAgainButton" type="Button" parent="GameOverPanel/VBox"]
@@ -123,14 +123,14 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
-text = "Play Again"
+text = "再来一局"
 
 [node name="MainMenuButton" type="Button" parent="GameOverPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
-text = "Main Menu"
+text = "返回主菜单"
 
 [node name="ResetRequestPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
@@ -155,7 +155,7 @@ theme_override_constants/separation = 15
 [node name="Label" type="Label" parent="ResetRequestPanel/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "Opponent wants a rematch!"
+text = "对手请求再来一局！"
 horizontal_alignment = 1
 
 [node name="HBox" type="HBoxContainer" parent="ResetRequestPanel/VBox"]
@@ -168,11 +168,11 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(100, 40)
 theme_override_font_sizes/font_size = 16
-text = "Accept"
+text = "同意"
 
 [node name="DeclineResetButton" type="Button" parent="ResetRequestPanel/VBox/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(100, 40)
 theme_override_font_sizes/font_size = 16
-text = "Decline"
+text = "拒绝"
