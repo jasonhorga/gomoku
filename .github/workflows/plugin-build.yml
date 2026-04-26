@@ -12,6 +12,7 @@ name: CI — Gomoku plugin build (iOS + macOS GDExtension)
 on:
   push:
     branches:
+      - main
       - swift-ml-plugin
     paths:
       - 'ios_plugin/**'

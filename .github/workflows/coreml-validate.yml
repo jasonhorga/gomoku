@@ -9,6 +9,7 @@ name: CI — CoreML validation (Swift plugin)
 on:
   push:
     branches:
+      - main
       - swift-ml-plugin
     paths:
       - 'ai_server/export_coreml.py'

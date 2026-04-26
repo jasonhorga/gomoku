@@ -9,6 +9,7 @@ name: CI — Swift port validation (diff vs Python)
 on:
   push:
     branches:
+      - main
       - swift-ml-plugin
     paths:
       - 'ios_plugin/Sources/GameLogic.swift'
