@@ -17,7 +17,12 @@ ai_server/data/weights/*.pkl
 ai_server/data/weights/*.onnx
 !ai_server/data/weights/best_model.pt
 !ai_server/data/weights/best_model.onnx
+ai_server/data/weights/archive/
 ai_server/logs/
+
+# Runtime artifacts (per-device, not source-controlled)
+game_records/
+docs/archive/
 
 # OS
 .DS_Store
