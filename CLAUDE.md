@@ -144,5 +144,18 @@ python3 -m nn.iterate --initial-model data/weights/bootstrap_128f6b.pt \
 
 ## GitHub
 - Repo: github.com/jasonhorga/gomoku (private)
-- Git operations done from local disk copy due to Drive mount slowness
 - SSH key: ~/.ssh/id_ed25519_hejia
+- Production branch: `main` (auto-merged from feature branches)
+
+## Working directory
+**One repo, in Drive.** `/home/ubuntu/claude-web-data/hejia/gomoku/` is
+a real git checkout that syncs to Mac via Google Drive. Run all git
+operations directly here. Drive mount + git is fast in practice (~70ms
+for status, ~30ms for log) once the FUSE cache warms; the earlier
+"two directories" workaround (separate `hejia_local/gomoku_git/`) was
+based on a worst-case assumption that didn't hold.
+
+Drive sync covers source code, docs, and tracked weights/. Build
+artifacts (`build/`, `.godot/`, `__pycache__/`) and runtime data
+(`game_records/`, `archive/`) are gitignored — they stay local on
+each machine and don't bloat Drive quota.
