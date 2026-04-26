@@ -15,14 +15,24 @@ echo "=========================================="
 echo " v2 Benchmark $(date)"
 echo "=========================================="
 
-python3 - <<'PY' 2>&1 | tee logs/bench_v2.log
+python3 -u - <<'PY' 2>&1 | tee logs/bench_v2.log
 import torch, time
 import sys
 sys.path.insert(0, '.')
+print('Loading modules...', flush=True)
 from ai.game_logic import GameLogic, BLACK, WHITE, EMPTY
 from nn.model import ModelWrapper
 from ai.mcts_engine import MCTSEngine
 from ai.minimax_engine import MinimaxEngine
+print('Modules loaded.', flush=True)
+
+# Force unbuffered prints (every line flushes immediately so `tail -f` works)
+import builtins
+_print = builtins.print
+def print(*args, **kw):
+    kw['flush'] = True
+    _print(*args, **kw)
+builtins.print = print
 
 def play(black, white, max_moves=150):
     g = GameLogic()
