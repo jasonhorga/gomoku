@@ -7,9 +7,11 @@ The AI uses AlphaZero-style training: pattern-guided MCTS teacher → CNN bootst
 ## Architecture
 
 ### Godot side (scenes/, scripts/)
-- Game UI, board rendering, online PvP (ENet), local PvP, AI integration
-- GDScript AI levels 1-5 (random, heuristic, minimax, MCTS)
-- Level 6 = Python CNN via TCP
+- Game UI, board rendering, online PvP (ENet), local PvP, AI integration, Chinese-only UI (Noto Sans CJK SC subset bundled)
+- GDScript AI levels L1-L4 (random, heuristic, minimax, minimax+TT/iter-deepening/killer)
+- L5 = pattern-MCTS via Swift plugin (1500 sims)
+- L6 = CNN+MCTS via Swift plugin + CoreML (200 sims, 50/50 hybrid)
+- Both iOS and macOS use the same Swift plugin (P3 unification 2026-04-21)
 
 ### Python AI side (ai_server/)
 ```
@@ -35,7 +37,7 @@ ai_server/
 - Body: initial conv → N residual blocks (each = 2 × conv+BN+ReLU)
 - Policy head: conv → FC → 225 softmax (move probabilities)
 - Value head: conv → FC → FC → 1 tanh (position evaluation -1 to +1)
-- Configurable: `--filters N --blocks B` (current: 48f/3b = 361k params)
+- Configurable: `--filters N --blocks B` (production: 128f/6b ≈ 2M params, bundled as best_model.pt)
 
 ## Training Pipeline
 
@@ -101,10 +103,12 @@ The MCTS engine has 3 modes depending on configuration:
 - v2: Two-pool (bootstrap anchor + fresh FIFO) → fixed forgetting
 - Current: Bootstrap pool not needed for strong models, fresh pool with replay_size cap
 
-## Current Best Models
-- `gen_final.pt` — Bootstrap model (pattern-MCTS teacher, 48f/3b)
-- `iter_3.pt` — 3 iterations from gen_final (v4, continuous leaf eval, 48f/3b)
-- `phA_iter_3.pt` — 3 more iterations from iter_3 (800 sims, 150 games/iter, 48f/3b)
+## Current Best Model (production)
+- `best_model.pt` = `big_iter_1.pt` — 128f/6b, 66.9% vs bootstrap_128f6b, trained 2026-04-14/15
+- `best_model.onnx` — ONNX export (used by export_coreml.py to produce .mlpackage)
+- Bundled as `Resources/GomokuNet.mlmodelc` in signed iOS/macOS apps
+- **Known limitation**: trained 2026-04-14, before split-three/split-four pattern detection was added 2026-04-16. The CNN doesn't recognize gap patterns. Retraining with the post-Apr 16 pattern_eval is the next major improvement (see docs/retrain_plan.md).
+- Older checkpoints archived to `ai_server/data/weights/archive/`.
 
 ## Training on Mac
 

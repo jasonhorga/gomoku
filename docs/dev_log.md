@@ -86,3 +86,49 @@ export_presets.cfg              — 导出配置
 - 棋盘渲染：✅ 已修复（show_behind_parent）
 - macOS M芯片版：✅ 已构建并上传
 - 未签名，macOS 需要 `xattr -cr Gobang.app` 或右键打开
+
+---
+
+## Phase Recap 2026-04-10 → 2026-04-26
+
+详细流水见 `ai_journey.md`，这里是简版。
+
+### 网络训练
+- 2026-04-10/11：v1 RL 失败（冷启动不可行），改 v2 SL bootstrap
+- 2026-04-12：bootstrap 48f/3b，loss 5.3 → 1.5 通过
+- 2026-04-13：iterate v4 48f/3b → `iter_3.pt`（48f/3b 天花板）
+- 2026-04-14/15：升级 128f/6b，bootstrap loss → 1.05；iterate 一夜 → **`big_iter_1.pt` = 当前生产 best_model**（66.9% vs bootstrap）
+- 2026-04-16：加分裂三/分裂四 pattern detection（**big_iter_1 训出来时还没这能力**）
+- 2026-04-25：Path A 加 minimax adversarial 训练失败（recipe 错，30% vs baseline）
+
+### iOS / macOS 部署
+- 2026-04-15：macOS 签名 + 公证 OK
+- 2026-04-17：iOS TestFlight 通过
+- 2026-04-18：iPhone 真机验证
+- 2026-04-21：**Swift 插件统一**——iOS + macOS 都跑 Swift + CoreML，删掉 Python TCP server 和 GDScript MCTS
+- 2026-04-25：AI Lab 颜色轮换、iOS 看门狗崩溃修复 (P3s)
+- 2026-04-25：中文 UI + 字体 (P3v/P3w/P3x)，bundled Noto Sans CJK SC subset 60KB
+
+### 仓库
+- 2026-04-26：废除"双目录" workaround——`/home/ubuntu/claude-web-data/hejia/gomoku/` 是单一 git checkout，Drive sync 处理 Mac 同步
+- 2026-04-26：swift-ml-plugin → main 合并；51 commits ahead 归零
+
+### 当前已知问题 / 改进路径
+
+| 问题 | 严重度 | 路径 |
+|---|---|---|
+| best_model 不认分裂三/四 | 中 | 用现 pattern_eval 重新 bootstrap+iterate 一晚 |
+| L4 minimax fork 攻势防不住（65-90% L6 vs L4）| 中 | 上面同条 + Lambda-2 threat search |
+| 无禁手对战不平衡（黑必胜）| 低 | Path B：加禁手模式 (~3 天) |
+| 网络架构 128f/6b 已 plateau | 低 | 升级 192f/8b 或 distill from Rapfi |
+
+完整改进路径见 `docs/retrain_plan.md` + `docs/gomoku_research.md`。
+
+### 下一阶段建议
+
+短期（一晚）：用现在 pattern_eval（包含 split detection）从 `bootstrap_128f6b.pt` 重新 iterate，**纯 self-play 严格按 ai_journey 验证过的配方**。预期产出：识别分裂攻击的 best_model v2，~+50-100 ELO。
+
+中期（一周）：实现 Lambda-2 threat search 在 MCTS 之上，或者 distill Rapfi 当 teacher。
+
+长期：禁手模式 (Path B) 作为独立 feature；Mixnet 移植作为高投入实验。
+
