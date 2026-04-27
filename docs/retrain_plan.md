@@ -39,71 +39,56 @@
 
 ### A.1 数据策略
 
-**问题**：当前自我对弈数据里，黑方都用相同策略下棋，white 看到的"对手风格"一致。L4 minimax 是不同的"对手风格"——更激进的局部威胁堆叠。
+**核心改动**：用现有的 split-aware `pattern_eval`（含 split-three / split-four 检测，commit fe32925, 2026-04-16）从 `bootstrap_128f6b.pt` 重新 iterate。Teacher 现在能识别分裂棋型，CNN 跟着学就有这能力。
 
-**解决**：在 self-play 数据集里**注入 L4 minimax 对手棋谱**。
+**纯 self-play，不混 adversarial**（修正 04-25 P4a 失败教训）：
 
-具体做法：
-- 30% 自我对弈（CNN+MCTS vs CNN+MCTS）
-- 50% 异质对弈（CNN+MCTS vs Pattern-MCTS）
-- **20% 对抗对弈（CNN+MCTS vs L4 minimax）** ← 新增
+| 选择 | 依据 |
+|---|---|
+| 不混 minimax 对手 | Python `minimax_engine.py` 比 iOS GDScript L4 弱（Python 100% vs random，但对 L6 弱）。CNN 对着弱 minimax 学等于练稻草人。**04-25 实测 30% vs baseline**——已证伪 |
+| 不混 pattern-only MCTS | self-play 时 value target = 终局结果，policy target = MCTS visit dist。混 heterogenous opponent 让"对方棋路不是 CNN+MCTS"这件事变成额外噪声源（§9 教训反复证明） |
+| 用 §8.3 验证过的纯 self-play | big_iter_1 (66.9% vs bootstrap) 就是这套跑出来的。**没有证据偏离会更好** |
 
-每局都从 CNN 视角生成训练数据（policy = MCTS visit distribution，value = game result）。
+**理论根据**：AlphaZero / KataGo / Leela 都纯 self-play。"opponent diversity"在 multi-agent RL（poker、StarCraft）有用，但 zero-sum 完美信息单 agent 不需要——agent 收敛到 minimax 解时，外部 weak opponent 数据反而会拉低均衡点。
 
 ### A.2 Pipeline 改造
 
-**文件**：`ai_server/nn/iterate.py`
+**基本不需要改。** 现有 `nn/iterate.py` 已支持本计划全部参数。**不新增引擎、不加 `--adversarial-frac`**。
 
-加 `--adversarial-frac 0.2` 参数，在 self-play 阶段：
+前置确认（5 分钟）：
+1. `ai/pattern_eval.py` 含 `_scan_line()` / `_gapped_score()`（split detection）—— grep 一下
+2. `data/weights/bootstrap_128f6b.pt` 和对应的 `bootstrap_128f6b_samples.pkl` 在位
+3. （可选）`tests/test_fork_defense.py` 作为新模型 sanity check
 
-```python
-# Pseudocode for iterate.py changes
-def play_self_play_game(adapter_cnn, opponent_type):
-    if opponent_type == 'self':
-        b_engine, w_engine = mcts_cnn(adapter_cnn), mcts_cnn(adapter_cnn)
-    elif opponent_type == 'pattern':
-        b_engine, w_engine = mcts_cnn(adapter_cnn), mcts_pattern()
-    elif opponent_type == 'minimax':
-        b_engine, w_engine = mcts_cnn(adapter_cnn), MinimaxEngine(depth=4)
-    # ... alternate B/W per game
-    return play(b_engine, w_engine)
+### A.3 架构升级：本轮保持 128f/6b
 
-# In iterate loop:
-n_self = int(games_per_iter * 0.3)
-n_pattern = int(games_per_iter * 0.5)
-n_advers = games_per_iter - n_self - n_pattern  # 20%
-```
+**严格不动架构。** 理由：
+- `ai_journey.md` §8 在 128f/6b 上验证过完整 §8.3 配方
+- 本轮主要变量是 **split-aware teacher**，不该和"换架构"耦合（耦合后无法归因）
+- 192f/8b → 1M+ params，bootstrap 要重做，训练时间近翻倍。先把当前架构 split-aware 后的上限摸清
 
-需要 port GDScript minimax 到 Python（已有部分，但需补全 TT + iterative deepening）。预计 4 小时。
+如果本轮 retrain 完仍 vs L4 ≤ 80%，按性价比考虑：
+- (a) Lambda-2 threat search（不动模型，~1-2 天编程）
+- (b) 192f/8b 重 bootstrap + iterate（~2 晚）
+- (c) Path B2 Rapfi 蒸馏（见 `gomoku_research.md` §4，~1 周）
 
-### A.3 可选：扩大网络
+### A.4 训练命令（§8.3 配方）
 
-如果 128f/6b 容量不够吸收新数据，考虑 192f/8b：
-- Params: 361k → ~1.0M
-- Inference latency: +50%（仍然秒级）
-- 训练时间: +30%
-
-**决策点**：先用 128f/6b 训一轮，看 fork 局型 benchmark 是否改善。如果改善 < 5%，升级架构。
-
-### A.4 训练命令
-
-**Bootstrap 不需要重做**——已有 `bootstrap_128f6b.pt` 仍是好起点。
-
-**Iterate**（基于现有 `best_model.pt`）：
+**起点是 `bootstrap_128f6b.pt`，不是 `best_model.pt`。** 理由：iterate 启动时读 `{model_path}_samples.pkl` 作为 bootstrap anchor pool（§9.2 v2 双池设计）。`best_model.pt` 没对应 .pkl 会触发 §9.2 末尾的 "fresh pool 无 cap" bug，pool 无限增长到 174k+。`bootstrap_128f6b.pt` 有 .pkl，走标准路径。
 
 ```bash
 cd ai_server
 python3 -m nn.iterate \
-    --initial-model data/weights/best_model.pt \
-    --iterations 6 \
-    --games-per-iter 200 \
-    --simulations 800 \
-    --epochs 12 \
-    --lr 5e-5 \
-    --replay-size 80000 \
+    --initial-model data/weights/bootstrap_128f6b.pt \
+    --iterations 5 \
+    --games-per-iter 150 \
+    --simulations 1600 \
+    --epochs 5 \
+    --lr 3e-5 \
+    --replay-size 60000 \
+    --fresh-ratio 1.5 \
     --filters 128 --blocks 6 \
     --vcf-depth 10 \
-    --adversarial-frac 0.2 \
     --benchmark-games 40 \
     --benchmark-sims 200 \
     --converge-threshold 0.50 \
@@ -112,10 +97,27 @@ python3 -m nn.iterate \
     --log-file logs/free_v2_iterate.log
 ```
 
-预计时间（Mac M5 32GB）：
-- 200 games × 800 sims × 6 iter ≈ 12-15 小时
-- 训练（每 iter 12 epochs × ~80k samples）≈ 30 分钟 × 6 = 3 小时
-- **总：~15-18 小时一夜**
+**预计时间**（Mac M5 32GB）：
+- 150 games × 1600 sims × 5 iter ≈ 12-14 小时 self-play
+- 5 epochs × ~30-60k samples × 5 iter ≈ 1-2 小时训练
+- **总：~14-16 小时一夜**
+
+#### 每个参数的依据（明确标注理论强度）
+
+| 参数 | 值 | 依据 | 依据强度 |
+|---|---|---|---|
+| `--initial-model bootstrap_128f6b.pt` | | 必须有对应 `_samples.pkl` 才不触发 §9.2 fresh pool bug | **强**（bug 实证） |
+| `--iterations` | 5 | §10 教训 #6：1-3 代到头。5 给 1 代 margin。理论：MCTS 分布随 CNN 收敛趋稳，marginal info → 0 | **强**（实测+信息论） |
+| `--simulations` | 1600 | §8.3 验证；MCTS 理论：每候选走法 ≥10 visits 才有可信 visit 分布。15×15 ~80 候选 × 16 ≈ 1280 是下界。AlphaZero Chess 用 800（19×19 太大补偿不到），KataGo 用 1000-1600 | 中（理论+对标） |
+| `--lr` | 3e-5 | Fine-tuning 标准做法：bootstrap 已 pretrained，新一轮应降 1-2 数量级避免 catastrophic forgetting。Adam from-scratch 1e-3 → fine-tune 1e-5 ~ 1e-4，3e-5 在 AZ late-stage schedule 范围内 | 中（理论+经验） |
+| `--epochs` | 5 | 每 iter ~30-60k × 8 augment ≈ 240k-480k 等效样本。5 epochs ≈ 2-3k batch updates。SGD 收敛理论：fine-tune 应少 epoch 多 batch，5 在合理区间 | 中 |
+| `--cnn-prior-weight` | 0.5 | **唯一无强理论依据**。§9.1 仅 4 点粗扫显示 0.5 最优。勉强援引"无信息先验下等权重"的 minimax bound。建议训完跑 A.7 sweep 验证 | **弱**（强经验，无理论） |
+| `--fresh-ratio` | 1.5 | §9.2 v2 buffer 实证：fresh pool ≤ 1.5 × bootstrap pool 时 forgetting 控制良好 | 中（实证） |
+| `--replay-size` | 60000 | 经验 cap 防 OOM。每 iter 加 ~30-50k，60k 覆盖最近 1-2 iter | 弱（实操） |
+| `--benchmark-games` | 40 | §10 教训 #7：40 局 binomial std ~8%，detect 5% 改进的最低 sample size | **强**（统计） |
+| `--converge-threshold` | 0.50 | "输 = 没改进"硬下界（§7.1 用 0.52 给 margin，但 5 iter 硬上限本身就是 fallback） | 中 |
+
+**总评**：10 个参数中 4 个**强**依据（initial-model、iterations、benchmark-games、converge-threshold），4 个中等，2 个弱（prior-weight、replay-size）。最弱的是 `cnn_prior_weight=0.5`——A.7 sweep 就是来补这一条的。下次再 retrain 想做实验，**prior-weight 是性价比最高的扫点维度**，其他参数动了大概率退化。
 
 ### A.5 Validation
 
@@ -162,6 +164,36 @@ python3 bench_l4_vs_l6.py \
 如果 `free_v2` 在 benchmark 里不如 `best_model`：
 - 保留 `best_model.pt` 为生产
 - 把 `free_v2_iter_N.pt` 移到 `archive/` + 写一份失败分析
+
+### A.7 Optional：训练后 prior weight fine sweep
+
+**前提**：A.4 训完得到一个比 `best_model` 更好的 `free_v2_iter_N.pt`。
+
+**动机**：当前生产用的 `cnn_prior_weight=0.5` 来自 `ai_journey.md` §9.1 在 big_iter_1 上的 **4 点粗扫**（0.3 / 0.5 / 0.75 / 0.9），0.4-0.6 之间从未细调过。新模型用 split-aware teacher 训出来后，CNN 的 policy 分布会变，最优 weight 可能微移。这是低成本验证。
+
+**实验**（只动 inference，不重训）：
+
+```bash
+# Lock new model, vary cnn_prior_weight at inference time
+for W in 0.4 0.5 0.6; do
+    python3 bench_l4_vs_l6.py \
+        --model-a data/weights/free_v2_iter_N.pt \
+        --model-b minimax_d4 \
+        --cnn-prior-weight $W \
+        --games 100 --alternate-colors \
+        --benchmark-sims 200 \
+        --output bench_results/free_v2_w${W}_vs_l4.json
+done
+```
+
+**成本**：~4-6 小时 Mac M5（远低于一晚训练）。
+
+**判定**：
+- 0.5 仍最高 → 保持现状，"50/50 假设" 在新模型上 confirm
+- 邻近值显著高（差距 > 5%）→ 更新 production inference 的 default weight
+- 差距 2-5% → 噪声范围（n=100 标准差 ~5%），保持 0.5
+
+**长远视角（不在本计划内）**：如果将来走 Path B2 Rapfi 蒸馏（见 `gomoku_research.md` §4），蒸馏后 CNN 等价学过 30.8M positions，训练规模跳 200x。届时应重新扫 [0.5, 0.6, 0.7, 0.8] —— Rapfi 自己的 teacher 用纯 NN prior（≈1.0），那个 regime 我们的小 sweep 可能完全不适用。
 
 ---
 
