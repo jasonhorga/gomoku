@@ -74,6 +74,8 @@
 
 ### A.4 训练命令（§8.3 配方）
 
+**Mac 上一键启动**：`bash ai_server/run_retrain.sh`（会做前置检查、用 caffeinate 防睡眠、nohup 后台启动、写 PID 文件）。下面是脚本里同样的命令，附带每个参数的依据。
+
 **起点是 `bootstrap_128f6b.pt`，不是 `best_model.pt`。** 理由：iterate 启动时读 `{model_path}_samples.pkl` 作为 bootstrap anchor pool（§9.2 v2 双池设计）。`best_model.pt` 没对应 .pkl 会触发 §9.2 末尾的 "fresh pool 无 cap" bug，pool 无限增长到 174k+。`bootstrap_128f6b.pt` 有 .pkl，走标准路径。
 
 ```bash
