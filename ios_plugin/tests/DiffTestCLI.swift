@@ -73,6 +73,13 @@ struct DiffTestCLI {
 			let moves = game.validMoves()
 			return ["moves": moves.map { [$0.row, $0.col] }]
 
+		case "is_forbidden_black":
+			guard let row = req["row"] as? Int, let col = req["col"] as? Int else {
+				return ["error": "is_forbidden_black needs row + col"]
+			}
+			var board = game.board
+			return ["forbidden": RenjuForbidden.isForbiddenBlack(board: &board, row: row, col: col)]
+
 		case "place_stone":
 			guard let row = req["row"] as? Int, let col = req["col"] as? Int else {
 				return ["error": "place_stone needs row + col"]

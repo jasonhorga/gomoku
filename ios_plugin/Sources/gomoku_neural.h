@@ -29,7 +29,7 @@ public:
 
 	// P2b hello API: ignores inputs, returns hardcoded (7, 7) via Swift.
 	// Grows into the full L5/L6 surface in P2f.
-	Vector2i get_move(int level, Array board, int player, Vector2i last_move);
+	Vector2i get_move(int level, Array board, int player, Vector2i last_move, bool forbidden_enabled);
 	String plugin_version();
 };
 

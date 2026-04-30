@@ -16,7 +16,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 
 	var plugin = Engine.get_singleton("GomokuNeural")
 	var last_move: Vector2i = move_history[-1] if not move_history.is_empty() else Vector2i(-1, -1)
-	var result: Vector2i = plugin.get_move(6, board, current_player, last_move)
+	var result: Vector2i = plugin.get_move(6, board, current_player, last_move, forbidden_enabled)
 	Log.info("Neural", "plugin L6 move=%s" % result)
 	return result
 

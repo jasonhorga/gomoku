@@ -56,19 +56,19 @@ func _smoke_test_plugin() -> void:
 	Log.info("Plugin", "built test_board, calling get_move (black)…")
 
 	var t0_us: int = Time.get_ticks_usec()
-	var black_move: Vector2i = plugin.get_move(5, test_board, 1, Vector2i(7, 8))
+	var black_move: Vector2i = plugin.get_move(5, test_board, 1, Vector2i(7, 8), false)
 	var dt_black_us: int = Time.get_ticks_usec() - t0_us
 	Log.info("Plugin", "black→(%d,%d) in %dus" % [black_move.x, black_move.y, dt_black_us])
 
 	var t1_us: int = Time.get_ticks_usec()
-	var white_move: Vector2i = plugin.get_move(5, test_board, 2, Vector2i(7, 8))
+	var white_move: Vector2i = plugin.get_move(5, test_board, 2, Vector2i(7, 8), false)
 	var dt_white_us: int = Time.get_ticks_usec() - t1_us
 	Log.info("Plugin", "white→(%d,%d) in %dus" % [white_move.x, white_move.y, dt_white_us])
 
 	# L6 probe — triggers CoreML lazy-load so version() string tells us
 	# whether the .mlmodelc landed in the bundle correctly.
 	var t2_us: int = Time.get_ticks_usec()
-	var l6_move: Vector2i = plugin.get_move(6, test_board, 1, Vector2i(7, 8))
+	var l6_move: Vector2i = plugin.get_move(6, test_board, 1, Vector2i(7, 8), false)
 	var dt_l6_us: int = Time.get_ticks_usec() - t2_us
 	Log.info("Plugin", "L6→(%d,%d) in %dus (first call triggers CoreML load)" % [l6_move.x, l6_move.y, dt_l6_us])
 	Log.info("Plugin", "post-L6 version=%s" % plugin.plugin_version())

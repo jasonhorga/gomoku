@@ -28,7 +28,7 @@ GomokuNeural::~GomokuNeural() {
 
 void GomokuNeural::_bind_methods() {
 	ClassDB::bind_method(
-			D_METHOD("get_move", "level", "board", "player", "last_move"),
+			D_METHOD("get_move", "level", "board", "player", "last_move", "forbidden_enabled"),
 			&GomokuNeural::get_move);
 	ClassDB::bind_method(
 			D_METHOD("plugin_version"), &GomokuNeural::plugin_version);
@@ -49,7 +49,8 @@ static GomokuMLCore *shared_core() {
 	return s_core;
 }
 
-Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i /*last_move*/) {
+Vector2i GomokuNeural::get_move(
+		int level, Array board, int player, Vector2i /*last_move*/, bool forbidden_enabled) {
 	// Godot Array of Arrays → NSArray of NSArray of NSNumber so the
 	// Swift @objc method can consume it directly. 15×15 board has 225
 	// ints — trivial allocation.
@@ -67,7 +68,8 @@ Vector2i GomokuNeural::get_move(int level, Array board, int player, Vector2i /*l
 
 	CGPoint pt = [shared_core() chooseMoveWithLevel:(NSInteger)level
 	                                           board:ns_board
-	                                          player:(NSInteger)player];
+	                                          player:(NSInteger)player
+	                                forbiddenEnabled:forbidden_enabled];
 	return Vector2i((int)pt.x, (int)pt.y);
 }
 

@@ -2,7 +2,7 @@ extends "res://scripts/ai/ai_engine.gd"
 
 # Thin adapter: routes Godot's engine interface
 # (choose_move(board, current_player, move_history)) to the
-# GomokuNeural Swift plugin (get_move(level, board, player, last_move)).
+# GomokuNeural Swift plugin (get_move(level, board, player, last_move, forbidden_enabled)).
 #
 # Replaces the old GDScript ai_mcts.gd for L5 and the GDScript/TCP
 # fallback in ai_neural.gd for L6 — after 2026-04-21 unification both
@@ -26,7 +26,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 
 	var plugin = Engine.get_singleton("GomokuNeural")
 	var last_move: Vector2i = move_history[-1] if not move_history.is_empty() else Vector2i(-1, -1)
-	var result: Vector2i = plugin.get_move(level, board, current_player, last_move)
+	var result: Vector2i = plugin.get_move(level, board, current_player, last_move, forbidden_enabled)
 	Log.info("Plugin", "L%d move=%s" % [level, result])
 	return result
 
