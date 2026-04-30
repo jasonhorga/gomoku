@@ -7,6 +7,7 @@ var selected_level: int = 2
 
 @onready var black_btn: Button = %BlackButton
 @onready var white_btn: Button = %WhiteButton
+@onready var renju_checkbox: CheckBox = %RenjuCheckBox
 @onready var level_btns: Array[Button] = []
 
 
@@ -82,7 +83,7 @@ func _create_engine():
 
 func _on_start() -> void:
 	var engine = _create_engine()
-	GameManager.setup_vs_ai(selected_color, engine)
+	GameManager.setup_vs_ai(selected_color, engine, renju_checkbox.button_pressed)
 	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
 
