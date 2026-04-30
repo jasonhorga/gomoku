@@ -1,5 +1,7 @@
 # 禁手规则 + 模型重训 Plan
 
+> 2026-04-30 scope update: first Renju phase is rules + UI hints + AI legal-move guardrails using the existing production CNN. Renju-specific CNN training is explicitly deferred until the rules mode is stable and separately justified.
+
 ## 背景
 
 无禁手 15×15 Gomoku 数学上**黑必胜**（Allis 1993）。当前 L4 minimax+TT 能利用这点用双重威胁强制胜，L6 (CNN+MCTS 200 sims) 在 65-90% 范围。要让 L6 真正稳定碾压 L4，**单纯调参/加 sims 不够**——需要要么换游戏规则（禁手），要么重训更强的模型。
