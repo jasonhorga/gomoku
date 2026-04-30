@@ -57,7 +57,7 @@ func _create_engine(level_idx: int):
 func _on_watch_pressed() -> void:
 	var engine_b = _create_engine(black_level.selected)
 	var engine_w = _create_engine(white_level.selected)
-	GameManager.setup_ai_vs_ai(engine_b, engine_w)
+	GameManager.setup_ai_vs_ai(engine_b, engine_w, GameManager.forbidden_enabled)
 	GameManager.ai_move_delay = SPEED_VALUES[int(speed_slider.value)]
 	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
@@ -100,6 +100,11 @@ func _run_next_batch_game() -> void:
 
 	# Run a headless game using game logic directly
 	var logic = _GameLogic.new()
+	logic.forbidden_enabled = GameManager.forbidden_enabled
+	if "forbidden_enabled" in engine_b:
+		engine_b.forbidden_enabled = GameManager.forbidden_enabled
+	if "forbidden_enabled" in engine_w:
+		engine_w.forbidden_enabled = GameManager.forbidden_enabled
 	var current = _GameLogic.BLACK
 
 	while not logic.game_over:
