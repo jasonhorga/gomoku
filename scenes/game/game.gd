@@ -41,7 +41,7 @@ func _configure_for_mode() -> void:
 			resign_button.text = "认输"
 			NetworkManager.player_disconnected.connect(_on_player_disconnected)
 		GameManager.GameMode.LOCAL_PVP:
-			color_label.text = ""
+			color_label.text = _ruleset_suffix()
 			resign_button.text = "新对局"
 		GameManager.GameMode.VS_AI:
 			_update_color_label()
@@ -50,8 +50,8 @@ func _configure_for_mode() -> void:
 			# Show which engines are fighting — before this just said
 			# "AI vs AI", which made it impossible to tell L4 vs L6
 			# from L5 vs L1 at a glance.
-			color_label.text = "%s（黑）vs %s（白）" % [
-				_friendly_engine_name(0), _friendly_engine_name(1)
+			color_label.text = "%s（黑）vs %s（白）%s" % [
+				_friendly_engine_name(0), _friendly_engine_name(1), _ruleset_suffix()
 			]
 			resign_button.text = "停止"
 
@@ -59,16 +59,22 @@ func _configure_for_mode() -> void:
 func _update_color_label() -> void:
 	# Vs-AI: say who you're playing against so the HUD doesn't just say
 	# "AI" with no context.
-	var opponent_idx := 1 if GameManager.my_color == _GameLogic.BLACK else 0
-	var opp_name := _friendly_engine_name(opponent_idx)
+	var opponent_idx: int = 1 if GameManager.my_color == _GameLogic.BLACK else 0
+	var opp_name: String = _friendly_engine_name(opponent_idx)
 	if GameManager.my_color == _GameLogic.BLACK:
-		color_label.text = "\u4f60\u6267\u9ed1 \u25cf  vs  %s" % opp_name
+		color_label.text = "\u4f60\u6267\u9ed1 \u25cf  vs  %s%s" % [opp_name, _ruleset_suffix()]
 	else:
-		color_label.text = "\u4f60\u6267\u767d \u25cb  vs  %s" % opp_name
+		color_label.text = "\u4f60\u6267\u767d \u25cb  vs  %s%s" % [opp_name, _ruleset_suffix()]
+
+
+func _ruleset_suffix() -> String:
+	if GameManager.forbidden_enabled:
+		return " \u00b7 \u7981\u624b"
+	return ""
 
 
 func _friendly_engine_name(player_idx: int) -> String:
-	var p = GameManager.players[player_idx] if player_idx < GameManager.players.size() else null
+	var p: Variant = GameManager.players[player_idx] if player_idx < GameManager.players.size() else null
 	if p == null:
 		return "?"
 	if "ai_engine" in p and p.ai_engine != null and p.ai_engine.has_method("get_name"):
@@ -116,6 +122,11 @@ func _on_game_ended(winner: int) -> void:
 	play_again_button.visible = true
 	play_again_button.text = "再来一局"
 	play_again_button.disabled = false
+
+	if GameManager.logic.game_end_reason == _GameLogic.END_REASON_FORBIDDEN:
+		result_label.text = "白方获胜：黑棋禁手"
+		result_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+		return
 
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
