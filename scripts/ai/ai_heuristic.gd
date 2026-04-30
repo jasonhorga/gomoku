@@ -4,9 +4,9 @@ var evaluator = preload("res://scripts/ai/pattern_evaluator.gd").new()
 
 
 func choose_move(board: Array, current_player: int, move_history: Array) -> Vector2i:
-	var candidates := get_nearby_empty_cells(board, 2)
+	var candidates := filter_legal_candidates(board, current_player, get_nearby_empty_cells(board, 2))
 	if candidates.is_empty():
-		return Vector2i(-1, -1)
+		return get_any_legal_empty_cell(board, current_player)
 
 	var best_move: Vector2i = candidates[0]
 	var best_score: float = -1.0

@@ -33,7 +33,7 @@ func choose_move(board: Array, current_player: int, move_history: Array) -> Vect
 
 	var candidates = _get_sorted_candidates(board, current_player)
 	if candidates.is_empty():
-		return Vector2i(7, 7)
+		return get_any_legal_empty_cell(board, current_player)
 
 	# Check for immediate win
 	for item in candidates:
@@ -115,6 +115,8 @@ func _minimax(board: Array, depth: int, alpha: float, beta: float,
 
 	var current: int = player if is_maximizing else opponent
 	var candidates = _get_sorted_candidates(board, current)
+	if candidates.is_empty():
+		return evaluator.evaluate_board(board, player)
 
 	# Try killer moves first
 	if ply < killer_moves.size():
@@ -191,7 +193,7 @@ func _minimax(board: Array, depth: int, alpha: float, beta: float,
 
 
 func _get_sorted_candidates(board: Array, current_player: int) -> Array:
-	var raw = get_nearby_empty_cells(board, 2)
+	var raw := filter_legal_candidates(board, current_player, get_nearby_empty_cells(board, 2))
 	var scored: Array = []
 	for pos in raw:
 		var s: float = evaluator.score_cell(board, pos.x, pos.y, current_player)
