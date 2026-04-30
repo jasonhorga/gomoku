@@ -11,6 +11,7 @@ var players: Array = [null, null]  # [0]=BLACK controller, [1]=WHITE controller
 var my_color: int = -1
 var is_my_turn: bool = false
 var ai_move_delay: float = 0.5
+var forbidden_enabled: bool = false
 
 signal stone_placed(row: int, col: int, color: int)
 signal turn_changed(is_my_turn: bool)
@@ -79,6 +80,8 @@ func _smoke_test_plugin() -> void:
 func setup_online(player_color: int) -> void:
 	mode = GameMode.ONLINE
 	my_color = player_color
+	forbidden_enabled = false
+	logic.forbidden_enabled = false
 	var human = load("res://scripts/player/human_player.gd").new()
 	human.color = player_color
 	var remote = load("res://scripts/player/network_player.gd").new()
@@ -92,9 +95,11 @@ func setup_online(player_color: int) -> void:
 		NetworkManager.reset_accepted.connect(_on_reset_accepted)
 
 
-func setup_local_pvp() -> void:
+func setup_local_pvp(p_forbidden_enabled: bool = false) -> void:
 	mode = GameMode.LOCAL_PVP
 	my_color = -1  # both are local
+	forbidden_enabled = p_forbidden_enabled
+	logic.forbidden_enabled = forbidden_enabled
 	var p1 = load("res://scripts/player/human_player.gd").new()
 	p1.color = _GameLogic.BLACK
 	var p2 = load("res://scripts/player/human_player.gd").new()
@@ -104,9 +109,11 @@ func setup_local_pvp() -> void:
 	_disconnect_network_signals()
 
 
-func setup_vs_ai(human_color: int, ai_engine) -> void:
+func setup_vs_ai(human_color: int, ai_engine, p_forbidden_enabled: bool = false) -> void:
 	mode = GameMode.VS_AI
 	my_color = human_color
+	forbidden_enabled = p_forbidden_enabled
+	logic.forbidden_enabled = forbidden_enabled
 	Log.info("Engine", "setup_vs_ai engine=%s" % _describe_engine(ai_engine))
 	var human = load("res://scripts/player/human_player.gd").new()
 	human.color = human_color
@@ -119,9 +126,11 @@ func setup_vs_ai(human_color: int, ai_engine) -> void:
 	_disconnect_network_signals()
 
 
-func setup_ai_vs_ai(engine_black, engine_white) -> void:
+func setup_ai_vs_ai(engine_black, engine_white, p_forbidden_enabled: bool = false) -> void:
 	mode = GameMode.AI_VS_AI
 	my_color = -1
+	forbidden_enabled = p_forbidden_enabled
+	logic.forbidden_enabled = forbidden_enabled
 	Log.info("Engine", "setup_ai_vs_ai black=%s white=%s" % [
 		_describe_engine(engine_black), _describe_engine(engine_white)
 	])
@@ -148,6 +157,8 @@ func _describe_engine(engine) -> String:
 
 func start_game() -> void:
 	logic.reset()
+	logic.forbidden_enabled = forbidden_enabled
+	_apply_ai_ruleset()
 	var mode_names: Array[String] = ["online", "local_pvp", "vs_ai", "ai_vs_ai"]
 	var mode_name: String = mode_names[mode]
 	Log.info("Game", "start mode=%s black=%s white=%s" % [
@@ -296,10 +307,17 @@ func _color_index(color: int) -> int:
 	return 0 if color == _GameLogic.BLACK else 1
 
 
+func _apply_ai_ruleset() -> void:
+	for p in players:
+		if p != null and "ai_engine" in p and p.ai_engine != null:
+			if "forbidden_enabled" in p.ai_engine:
+				p.ai_engine.forbidden_enabled = forbidden_enabled
+
+
 func _first_empty_cell() -> Vector2i:
 	for r in range(_GameLogic.BOARD_SIZE):
 		for c in range(_GameLogic.BOARD_SIZE):
-			if logic.board[r][c] == _GameLogic.EMPTY:
+			if logic.board[r][c] == _GameLogic.EMPTY and not logic.is_forbidden_move(r, c, logic.current_player):
 				return Vector2i(r, c)
 	return Vector2i(-1, -1)
 
