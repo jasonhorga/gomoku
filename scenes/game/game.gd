@@ -3,11 +3,27 @@ extends Control
 const _GameLogic = preload("res://scripts/game_logic.gd")
 const _PlayerController = preload("res://scripts/player/player_controller.gd")
 
+@onready var horizontal_layout: HBoxContainer = %HorizontalLayout
+@onready var vertical_layout: VBoxContainer = %VerticalLayout
+@onready var horizontal_panel_content: VBoxContainer = %HorizontalPanelContent
+@onready var vertical_status: MarginContainer = %VerticalStatus
+@onready var horizontal_board_host: CenterContainer = %HorizontalBoardHost
+@onready var vertical_board_host: CenterContainer = %VerticalBoardHost
+@onready var board_frame: Control = %BoardFrame
+@onready var vertical_actions: MarginContainer = %VerticalActions
+@onready var status_container: VBoxContainer = %StatusContainer
+@onready var actions_container: VBoxContainer = %ActionsContainer
+@onready var spacer: Control = %Spacer
+@onready var board: Node2D = %Board
 @onready var turn_label: Label = %TurnLabel
 @onready var color_label: Label = %ColorLabel
 @onready var move_label: Label = %MoveLabel
 @onready var message_label: Label = %MessageLabel
+@onready var undo_button: Button = %UndoButton
+@onready var new_game_button: Button = %NewGameButton
+@onready var back_to_menu_button: Button = %BackToMenuButton
 @onready var resign_button: Button = %ResignButton
+@onready var confirm_dialog: ConfirmationDialog = %ConfirmDialog
 @onready var game_over_panel: PanelContainer = %GameOverPanel
 @onready var result_label: Label = %ResultLabel
 @onready var play_again_button: Button = %PlayAgainButton
@@ -15,6 +31,7 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 @onready var reset_request_panel: PanelContainer = %ResetRequestPanel
 
 var _message_token: int = 0
+var _pending_confirmation: Callable = Callable()
 
 
 func _ready() -> void:
@@ -25,31 +42,41 @@ func _ready() -> void:
 	GameManager.opponent_reset_requested.connect(_on_opponent_reset_requested)
 	GameManager.game_reset.connect(_on_game_reset)
 
+	undo_button.pressed.connect(_on_undo_pressed)
+	new_game_button.pressed.connect(_confirm_new_game)
+	back_to_menu_button.pressed.connect(_confirm_main_menu)
 	resign_button.pressed.connect(_on_resign_pressed)
 	play_again_button.pressed.connect(_on_play_again_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	%AcceptResetButton.pressed.connect(_on_accept_reset)
 	%DeclineResetButton.pressed.connect(_on_decline_reset)
+	confirm_dialog.confirmed.connect(_on_confirmed)
+	get_viewport().size_changed.connect(_apply_responsive_layout)
 
 	game_over_panel.visible = false
 	reset_request_panel.visible = false
 
 	_configure_for_mode()
+	_apply_responsive_layout()
 	GameManager.start_game()
 
 
 func _configure_for_mode() -> void:
+	undo_button.visible = GameManager.mode == GameManager.GameMode.LOCAL_PVP or GameManager.mode == GameManager.GameMode.VS_AI
+	undo_button.disabled = not GameManager.has_method("undo_last_turn")
+	new_game_button.visible = GameManager.mode != GameManager.GameMode.ONLINE
+	back_to_menu_button.visible = GameManager.mode != GameManager.GameMode.ONLINE
+	resign_button.visible = GameManager.mode == GameManager.GameMode.ONLINE
+
 	match GameManager.mode:
 		GameManager.GameMode.ONLINE:
 			_update_color_label()
 			resign_button.text = "认输"
 			NetworkManager.player_disconnected.connect(_on_player_disconnected)
 		GameManager.GameMode.LOCAL_PVP:
-			color_label.text = _ruleset_suffix()
-			resign_button.text = "新对局"
+			color_label.text = "本地双人%s" % _ruleset_suffix()
 		GameManager.GameMode.VS_AI:
 			_update_color_label()
-			resign_button.text = "认输"
 		GameManager.GameMode.AI_VS_AI:
 			# Show which engines are fighting — before this just said
 			# "AI vs AI", which made it impossible to tell L4 vs L6
@@ -57,7 +84,47 @@ func _configure_for_mode() -> void:
 			color_label.text = "%s（黑）vs %s（白）%s" % [
 				_friendly_engine_name(0), _friendly_engine_name(1), _ruleset_suffix()
 			]
-			resign_button.text = "停止"
+
+
+func _apply_responsive_layout() -> void:
+	var size: Vector2i = get_viewport_rect().size
+	var use_vertical: bool = OS.get_name() == "iOS" and size.y > size.x
+	vertical_layout.visible = use_vertical
+	horizontal_layout.visible = not use_vertical
+
+	var board_size: float = 620.0
+	if use_vertical:
+		board_size = minf(float(size.x) - 24.0, 620.0)
+	board_size = maxf(board_size, 240.0)
+
+	board_frame.custom_minimum_size = Vector2(board_size, board_size)
+	if "board_pixel_size" in board:
+		board.board_pixel_size = board_size
+	board.queue_redraw()
+
+	if use_vertical:
+		_reparent_if_needed(status_container, vertical_status)
+		_reparent_if_needed(board_frame, vertical_board_host)
+		_reparent_if_needed(actions_container, vertical_actions)
+		spacer.visible = false
+	else:
+		_reparent_if_needed(status_container, horizontal_panel_content, 0)
+		_reparent_if_needed(board_frame, horizontal_board_host)
+		_reparent_if_needed(actions_container, horizontal_panel_content)
+		spacer.visible = true
+		if spacer.get_parent() != horizontal_panel_content:
+			horizontal_panel_content.add_child(spacer)
+			horizontal_panel_content.move_child(spacer, 1)
+
+
+func _reparent_if_needed(node: Node, new_parent: Node, index: int = -1) -> void:
+	if node.get_parent() == new_parent:
+		if index >= 0:
+			new_parent.move_child(node, index)
+		return
+	node.reparent(new_parent, false)
+	if index >= 0:
+		new_parent.move_child(node, index)
 
 
 func _update_color_label() -> void:
@@ -66,14 +133,14 @@ func _update_color_label() -> void:
 	var opponent_idx: int = 1 if GameManager.my_color == _GameLogic.BLACK else 0
 	var opp_name: String = _friendly_engine_name(opponent_idx)
 	if GameManager.my_color == _GameLogic.BLACK:
-		color_label.text = "\u4f60\u6267\u9ed1 \u25cf  vs  %s%s" % [opp_name, _ruleset_suffix()]
+		color_label.text = "你执黑 ●  vs  %s%s" % [opp_name, _ruleset_suffix()]
 	else:
-		color_label.text = "\u4f60\u6267\u767d \u25cb  vs  %s%s" % [opp_name, _ruleset_suffix()]
+		color_label.text = "你执白 ○  vs  %s%s" % [opp_name, _ruleset_suffix()]
 
 
 func _ruleset_suffix() -> String:
 	if GameManager.forbidden_enabled:
-		return " \u00b7 \u7981\u624b"
+		return " · 禁手"
 	return ""
 
 
@@ -91,29 +158,29 @@ func _on_turn_changed(_is_my_turn: bool) -> void:
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
 			if GameManager.logic.current_player == _GameLogic.BLACK:
-				turn_label.text = "\u25b6 \u9ed1\u65b9\u56de\u5408"
+				turn_label.text = "▶ 黑方回合"
 			else:
-				turn_label.text = "\u25b6 \u767d\u65b9\u56de\u5408"
+				turn_label.text = "▶ 白方回合"
 			turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 		GameManager.GameMode.VS_AI:
 			if _is_my_turn:
-				turn_label.text = "\u25b6 \u4f60\u7684\u56de\u5408"
+				turn_label.text = "▶ 你的回合"
 				turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 			else:
-				turn_label.text = "AI \u601d\u8003\u4e2d..."
+				turn_label.text = "AI 思考中..."
 				turn_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		GameManager.GameMode.AI_VS_AI:
 			if GameManager.logic.current_player == _GameLogic.BLACK:
-				turn_label.text = "\u9ed1\u65b9 AI..."
+				turn_label.text = "黑方 AI..."
 			else:
-				turn_label.text = "\u767d\u65b9 AI..."
+				turn_label.text = "白方 AI..."
 			turn_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		_:  # ONLINE
 			if _is_my_turn:
-				turn_label.text = "\u25b6 \u4f60\u7684\u56de\u5408"
+				turn_label.text = "▶ 你的回合"
 				turn_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 			else:
-				turn_label.text = "\u5bf9\u624b\u56de\u5408"
+				turn_label.text = "对手回合"
 				turn_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 
 
@@ -172,11 +239,33 @@ func _on_game_reset() -> void:
 	message_label.text = ""
 
 
+func _on_undo_pressed() -> void:
+	if GameManager.has_method("undo_last_turn"):
+		GameManager.undo_last_turn()
+	else:
+		_show_message("悔棋功能即将加入")
+
+
+func _confirm_new_game() -> void:
+	_pending_confirmation = Callable(GameManager, "request_reset")
+	confirm_dialog.dialog_text = "确定开始新对局吗？"
+	confirm_dialog.popup_centered()
+
+
+func _confirm_main_menu() -> void:
+	_pending_confirmation = Callable(self, "_go_to_main_menu")
+	confirm_dialog.dialog_text = "确定返回主菜单吗？"
+	confirm_dialog.popup_centered()
+
+
+func _on_confirmed() -> void:
+	if _pending_confirmation.is_valid():
+		_pending_confirmation.call()
+	_pending_confirmation = Callable()
+
+
 func _on_resign_pressed() -> void:
 	match GameManager.mode:
-		GameManager.GameMode.LOCAL_PVP:
-			# "New Game" — just restart
-			GameManager.request_reset()
 		GameManager.GameMode.VS_AI:
 			var opponent_color: int = _GameLogic.WHITE if GameManager.my_color == _GameLogic.BLACK else _GameLogic.BLACK
 			GameManager.logic.game_over = true
@@ -191,6 +280,8 @@ func _on_resign_pressed() -> void:
 		GameManager.GameMode.AI_VS_AI:
 			# Stop — go back to menu
 			_on_main_menu_pressed()
+		_:
+			pass
 
 
 func _on_play_again_pressed() -> void:
@@ -203,6 +294,10 @@ func _on_play_again_pressed() -> void:
 
 
 func _on_main_menu_pressed() -> void:
+	_go_to_main_menu()
+
+
+func _go_to_main_menu() -> void:
 	GameManager._cancel_current_move()
 	if GameManager.mode == GameManager.GameMode.ONLINE:
 		NetworkManager.disconnect_from_game()

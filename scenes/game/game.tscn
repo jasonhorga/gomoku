@@ -21,7 +21,8 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.09, 0.06, 1)
 
-[node name="HBoxContainer" type="HBoxContainer" parent="."]
+[node name="HorizontalLayout" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -30,7 +31,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 20
 
-[node name="BoardMargin" type="MarginContainer" parent="HBoxContainer"]
+[node name="BoardMargin" type="MarginContainer" parent="HorizontalLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 3.0
@@ -39,48 +40,61 @@ theme_override_constants/margin_top = 30
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 30
 
-[node name="BoardCenter" type="CenterContainer" parent="HBoxContainer/BoardMargin"]
+[node name="HorizontalBoardHost" type="CenterContainer" parent="HorizontalLayout/BoardMargin"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Board" parent="HBoxContainer/BoardMargin/BoardCenter" instance=ExtResource("2")]
+[node name="BoardFrame" type="Control" parent="HorizontalLayout/BoardMargin/HorizontalBoardHost"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(620, 620)
+layout_mode = 2
 
-[node name="SidePanel" type="VBoxContainer" parent="HBoxContainer"]
+[node name="Board" parent="HorizontalLayout/BoardMargin/HorizontalBoardHost/BoardFrame" instance=ExtResource("2")]
+unique_name_in_owner = true
+
+[node name="SidePanel" type="VBoxContainer" parent="HorizontalLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 1.0
 theme_override_constants/separation = 15
 
-[node name="SidePanelMargin" type="MarginContainer" parent="HBoxContainer/SidePanel"]
+[node name="SidePanelMargin" type="MarginContainer" parent="HorizontalLayout/SidePanel"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_top = 40
 theme_override_constants/margin_right = 30
 
-[node name="VBox" type="VBoxContainer" parent="HBoxContainer/SidePanel/SidePanelMargin"]
+[node name="HorizontalPanelContent" type="VBoxContainer" parent="HorizontalLayout/SidePanel/SidePanelMargin"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="TurnLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="StatusContainer" type="VBoxContainer" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="TurnLabel" type="Label" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/StatusContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "你的回合"
 
-[node name="ColorLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="ColorLabel" type="Label" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/StatusContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(0.76, 0.6, 0.42, 1)
 text = "你执黑棋"
 
-[node name="MoveLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="MoveLabel" type="Label" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/StatusContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 text = "步数：0"
 
-[node name="MessageLabel" type="Label" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="MessageLabel" type="Label" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/StatusContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
@@ -88,16 +102,75 @@ text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="Spacer" type="Control" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="Spacer" type="Control" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ResignButton" type="Button" parent="HBoxContainer/SidePanel/SidePanelMargin/VBox"]
+[node name="ActionsContainer" type="VBoxContainer" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(0, 40)
-theme_override_font_sizes/font_size = 16
+theme_override_constants/separation = 10
+
+[node name="UndoButton" type="Button" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/ActionsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+text = "悔棋"
+
+[node name="NewGameButton" type="Button" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/ActionsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+text = "新对局"
+
+[node name="BackToMenuButton" type="Button" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/ActionsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
+text = "返回主菜单"
+
+[node name="ResignButton" type="Button" parent="HorizontalLayout/SidePanel/SidePanelMargin/HorizontalPanelContent/ActionsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+theme_override_font_sizes/font_size = 18
 text = "认输"
+
+[node name="VerticalLayout" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="VerticalStatus" type="MarginContainer" parent="VerticalLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 0
+
+[node name="VerticalBoardHost" type="CenterContainer" parent="VerticalLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VerticalActions" type="MarginContainer" parent="VerticalLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
 
 [node name="GameOverPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
@@ -184,3 +257,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 40)
 theme_override_font_sizes/font_size = 16
 text = "拒绝"
+
+[node name="ConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "确认"
+ok_button_text = "确定"
+cancel_button_text = "取消"
