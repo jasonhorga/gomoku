@@ -32,6 +32,7 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 
 var _message_token: int = 0
 var _pending_confirmation: Callable = Callable()
+var _resume_after_confirmation_cancel: bool = false
 
 
 func _ready() -> void:
@@ -51,6 +52,8 @@ func _ready() -> void:
 	%AcceptResetButton.pressed.connect(_on_accept_reset)
 	%DeclineResetButton.pressed.connect(_on_decline_reset)
 	confirm_dialog.confirmed.connect(_on_confirmed)
+	confirm_dialog.canceled.connect(_on_confirmation_cancelled)
+	confirm_dialog.close_requested.connect(_on_confirmation_cancelled)
 	get_viewport().size_changed.connect(_apply_responsive_layout)
 
 	game_over_panel.visible = false
@@ -59,6 +62,23 @@ func _ready() -> void:
 	_configure_for_mode()
 	_apply_responsive_layout()
 	GameManager.start_game()
+
+
+func _exit_tree() -> void:
+	_disconnect_if_connected(GameManager.turn_changed, _on_turn_changed)
+	_disconnect_if_connected(GameManager.stone_placed, _on_stone_placed)
+	_disconnect_if_connected(GameManager.game_ended, _on_game_ended)
+	_disconnect_if_connected(GameManager.invalid_human_move, _on_invalid_human_move)
+	_disconnect_if_connected(GameManager.opponent_reset_requested, _on_opponent_reset_requested)
+	_disconnect_if_connected(GameManager.game_reset, _on_game_reset)
+	_disconnect_if_connected(NetworkManager.player_disconnected, _on_player_disconnected)
+	if is_inside_tree():
+		_disconnect_if_connected(get_viewport().size_changed, _apply_responsive_layout)
+
+
+func _disconnect_if_connected(sig: Signal, callable: Callable) -> void:
+	if sig.is_connected(callable):
+		sig.disconnect(callable)
 
 
 func _configure_for_mode() -> void:
@@ -247,21 +267,35 @@ func _on_undo_pressed() -> void:
 
 
 func _confirm_new_game() -> void:
-	_pending_confirmation = Callable(GameManager, "request_reset")
-	confirm_dialog.dialog_text = "确定开始新对局吗？"
-	confirm_dialog.popup_centered()
+	_pause_game_for_confirmation(Callable(GameManager, "request_reset"), "确定开始新对局吗？")
 
 
 func _confirm_main_menu() -> void:
-	_pending_confirmation = Callable(self, "_go_to_main_menu")
-	confirm_dialog.dialog_text = "确定返回主菜单吗？"
+	_pause_game_for_confirmation(Callable(self, "_go_to_main_menu"), "确定返回主菜单吗？")
+
+
+func _pause_game_for_confirmation(action: Callable, message: String) -> void:
+	_pending_confirmation = action
+	_resume_after_confirmation_cancel = not GameManager.logic.game_over
+	if _resume_after_confirmation_cancel:
+		GameManager.pause_current_move()
+	confirm_dialog.dialog_text = message
 	confirm_dialog.popup_centered()
 
 
 func _on_confirmed() -> void:
-	if _pending_confirmation.is_valid():
-		_pending_confirmation.call()
+	_resume_after_confirmation_cancel = false
+	var action: Callable = _pending_confirmation
 	_pending_confirmation = Callable()
+	if action.is_valid():
+		action.call()
+
+
+func _on_confirmation_cancelled() -> void:
+	_pending_confirmation = Callable()
+	if _resume_after_confirmation_cancel:
+		_resume_after_confirmation_cancel = false
+		GameManager.resume_current_move()
 
 
 func _on_resign_pressed() -> void:

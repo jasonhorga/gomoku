@@ -12,6 +12,8 @@ var my_color: int = -1
 var is_my_turn: bool = false
 var ai_move_delay: float = 0.5
 var forbidden_enabled: bool = false
+var _move_requests_paused: bool = false
+var _move_request_epoch: int = 0
 
 signal stone_placed(row: int, col: int, color: int)
 signal turn_changed(is_my_turn: bool)
@@ -157,6 +159,8 @@ func _describe_engine(engine) -> String:
 # ---- Core game loop ----
 
 func start_game() -> void:
+	_move_requests_paused = false
+	_move_request_epoch += 1
 	logic.reset()
 	logic.forbidden_enabled = forbidden_enabled
 	_apply_ai_ruleset()
@@ -171,6 +175,8 @@ func start_game() -> void:
 
 
 func submit_human_move(row: int, col: int) -> void:
+	if _move_requests_paused:
+		return
 	var ctrl = _current_controller()
 	if ctrl == null or ctrl.player_type != _PlayerController.Type.LOCAL_HUMAN:
 		return
@@ -184,6 +190,8 @@ func submit_human_move(row: int, col: int) -> void:
 
 
 func _request_current_move() -> void:
+	if _move_requests_paused:
+		return
 	var ctrl = _current_controller()
 	# Bracket each request with a "thinking" log so we can see how long
 	# a GDScript AI (L1-L4) spends choosing a move — previously their
@@ -202,6 +210,8 @@ var _invalid_retries: int = 0
 
 
 func _on_move_decided(row: int, col: int) -> void:
+	if _move_requests_paused:
+		return
 	var color: int = logic.current_player
 	# One line per move regardless of source (human, GDScript L1-L4, or
 	# the Swift plugin) so the log is a full transcript. Previously only
@@ -257,8 +267,11 @@ func _on_move_decided(row: int, col: int) -> void:
 		game_ended.emit(logic.winner)
 	else:
 		_update_turn_state()
+		var request_epoch: int = _move_request_epoch
 		if mode == GameMode.AI_VS_AI and ai_move_delay > 0.0:
 			await get_tree().create_timer(ai_move_delay).timeout
+			if _move_requests_paused or request_epoch != _move_request_epoch:
+				return
 		_request_current_move()
 
 
@@ -330,7 +343,22 @@ func _first_empty_cell() -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+func pause_current_move() -> void:
+	_move_requests_paused = true
+	_move_request_epoch += 1
+	_cancel_current_move()
+
+
+func resume_current_move() -> void:
+	if not _move_requests_paused:
+		return
+	_move_requests_paused = false
+	_move_request_epoch += 1
+	_request_current_move()
+
+
 func _cancel_current_move() -> void:
+	_move_request_epoch += 1
 	for p in players:
 		if p != null:
 			if p.move_decided.is_connected(_on_move_decided):
