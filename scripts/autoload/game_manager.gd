@@ -20,6 +20,8 @@ var replay_record = null
 var replay_return_scene: String = "res://scenes/main_menu/main_menu.tscn"
 var _move_requests_paused: bool = false
 var _move_request_epoch: int = 0
+var _ai_watch_retrying_paused_move: bool = false
+var _ai_watch_retrying_color: int = _GameLogic.EMPTY
 
 signal stone_placed(row: int, col: int, color: int)
 signal turn_changed(is_my_turn: bool)
@@ -143,6 +145,8 @@ func setup_ai_vs_ai(engine_black, engine_white, p_forbidden_enabled: bool = fals
 	ai_watch_paused = false
 	ai_step_requested = false
 	ai_move_in_progress = false
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
 	forbidden_enabled = p_forbidden_enabled
 	logic.forbidden_enabled = forbidden_enabled
 	Log.info("Engine", "setup_ai_vs_ai black=%s white=%s" % [
@@ -175,6 +179,8 @@ func start_game() -> void:
 	_move_request_epoch += 1
 	ai_step_requested = false
 	ai_move_in_progress = false
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
 	if mode == GameMode.AI_VS_AI:
 		ai_watch_state_changed.emit()
 	logic.reset()
@@ -209,7 +215,10 @@ func _request_current_move() -> void:
 	if _move_requests_paused:
 		_clear_ai_watch_move_in_progress()
 		return
-	if mode == GameMode.AI_VS_AI and ai_watch_paused and not ai_step_requested:
+	var can_retry_paused_watch_move: bool = mode == GameMode.AI_VS_AI \
+		and _ai_watch_retrying_paused_move \
+		and _ai_watch_retrying_color == logic.current_player
+	if mode == GameMode.AI_VS_AI and ai_watch_paused and not ai_step_requested and not can_retry_paused_watch_move:
 		_clear_ai_watch_move_in_progress()
 		ai_watch_state_changed.emit()
 		return
@@ -276,13 +285,15 @@ func _on_move_decided(row: int, col: int) -> void:
 			else:
 				Log.error("Move", "no legal move, ending game")
 				logic.game_over = true
+				_clear_ai_watch_paused_retry()
 				_clear_ai_watch_move_in_progress()
 				game_ended.emit(0)
 			return
-		_clear_ai_watch_move_in_progress()
+		_mark_ai_watch_paused_retry(color)
 		_request_current_move()
 		return
 	_invalid_retries = 0
+	_clear_ai_watch_paused_retry()
 
 	if mode == GameMode.AI_VS_AI:
 		_clear_ai_watch_move_in_progress()
@@ -469,6 +480,17 @@ func _clear_ai_watch_move_in_progress() -> void:
 		ai_watch_state_changed.emit()
 
 
+func _mark_ai_watch_paused_retry(color: int) -> void:
+	if mode == GameMode.AI_VS_AI and ai_watch_paused:
+		_ai_watch_retrying_paused_move = true
+		_ai_watch_retrying_color = color
+
+
+func _clear_ai_watch_paused_retry() -> void:
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
+
+
 func pause_current_move() -> void:
 	_move_requests_paused = true
 	_move_request_epoch += 1
@@ -486,6 +508,7 @@ func resume_current_move() -> void:
 
 func _cancel_current_move() -> void:
 	_move_request_epoch += 1
+	_clear_ai_watch_paused_retry()
 	for p in players:
 		if p != null:
 			if p.move_decided.is_connected(_on_move_decided):

@@ -36,6 +36,8 @@ func _ready() -> void:
 func _run_tests() -> void:
 	_test_pause_blocks_ai_vs_ai_requests()
 	_test_step_advances_exactly_one_move()
+	_test_paused_step_retries_invalid_move_until_one_accepted()
+	_test_pause_during_in_progress_invalid_move_still_resolves_current_move()
 	_test_auto_resume_requests_current_move()
 	_test_game_scene_exposes_ai_watch_controls()
 
@@ -126,6 +128,50 @@ func _test_step_advances_exactly_one_move() -> void:
 	_assert_true(gm.ai_watch_paused, "watch should remain paused after one step")
 	_assert_false(gm.ai_move_in_progress, "move-in-progress should clear after accepted step move")
 	_assert_true(_state_changes >= 2, "step start and finish should notify AI watch state listeners")
+
+
+func _test_paused_step_retries_invalid_move_until_one_accepted() -> void:
+	var fixture = _setup_watch_game(true)
+	var gm = fixture.gm
+	var black = fixture.black
+	var white = fixture.white
+	gm.request_ai_watch_step()
+	_assert_eq(black.request_count, 1, "paused step should request black once")
+	gm._on_move_decided(-1, -1)
+	_assert_eq(gm.logic.move_history.size(), 0, "invalid step result should not place a stone")
+	_assert_true(gm.ai_watch_paused, "watch should remain paused while retrying invalid step result")
+	_assert_true(gm.ai_move_in_progress, "invalid step result should keep current move resolving")
+	_assert_eq(black.request_count, 2, "invalid step result should retry current black move even while paused")
+	_assert_eq(white.request_count, 0, "invalid step retry should not request white")
+	gm._on_move_decided(7, 7)
+	_assert_eq(gm.logic.move_history.size(), 1, "invalid-then-valid step should place exactly one stone")
+	_assert_eq(gm.logic.move_history[0], Vector2i(7, 7), "invalid-then-valid step should accept black's valid retry")
+	_assert_true(gm.ai_watch_paused, "watch should remain paused after invalid-then-valid step")
+	_assert_false(gm.ai_move_in_progress, "accepted retry should clear move-in-progress")
+	_assert_eq(black.request_count, 2, "accepted retry should not duplicate black requests")
+	_assert_eq(white.request_count, 0, "accepted paused step should not request next white move")
+
+
+func _test_pause_during_in_progress_invalid_move_still_resolves_current_move() -> void:
+	var fixture = _setup_watch_game(false)
+	var gm = fixture.gm
+	var black = fixture.black
+	var white = fixture.white
+	_assert_eq(black.request_count, 1, "auto watch should request initial black move")
+	gm.set_ai_watch_paused(true)
+	_assert_true(gm.ai_watch_paused, "pause during in-progress move should set pause flag")
+	_assert_true(gm.ai_move_in_progress, "pause during in-progress move should not cancel the current request")
+	gm._on_move_decided(-1, -1)
+	_assert_eq(gm.logic.move_history.size(), 0, "invalid in-progress result should not place a stone")
+	_assert_true(gm.ai_move_in_progress, "invalid in-progress result should keep current move resolving despite pause")
+	_assert_eq(black.request_count, 2, "invalid in-progress result should retry current black move despite pause")
+	_assert_eq(white.request_count, 0, "invalid in-progress retry should not request white")
+	gm._on_move_decided(7, 7)
+	_assert_eq(gm.logic.move_history.size(), 1, "valid retry after pause should place exactly one current stone")
+	_assert_eq(gm.logic.move_history[0], Vector2i(7, 7), "valid retry after pause should accept current black move")
+	_assert_true(gm.ai_watch_paused, "watch should remain paused after resolving in-progress move")
+	_assert_false(gm.ai_move_in_progress, "resolved in-progress move should clear move-in-progress")
+	_assert_eq(white.request_count, 0, "resolved in-progress move should not request next white move while paused")
 
 
 func _test_auto_resume_requests_current_move() -> void:
