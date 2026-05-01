@@ -49,13 +49,19 @@ func _ready() -> void:
 func _run_tests() -> void:
 	_test_local_pvp_undo_free()
 	_test_local_pvp_undo_renju()
+	_test_local_pvp_undo_to_empty_disables_capability()
 	_test_vs_ai_undo_after_ai_responded_removes_pair()
 	_test_vs_ai_undo_while_ai_thinking_removes_pending_human_move()
 	_test_human_white_opening_undo_disabled()
+	_test_undo_replay_failure_preserves_active_request()
 	_test_invalid_history_replay_does_not_mutate_state()
 
 func _assert_true(condition: bool, message: String) -> void:
 	if not condition:
+		failures.append(message)
+
+func _assert_false(condition: bool, message: String) -> void:
+	if condition:
 		failures.append(message)
 
 func _assert_eq(actual, expected, message: String) -> void:
@@ -87,6 +93,7 @@ func _test_local_pvp_undo_free() -> void:
 	gm.start_game()
 	gm.submit_human_move(7, 7)
 	gm.submit_human_move(7, 8)
+	_assert_true(gm.can_undo_last_turn(), "local PvP free should expose undo capability after moves")
 	var ok: bool = gm.undo_last_turn()
 	_assert_true(ok, "local PvP free undo should succeed")
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "local PvP free should remove one move")
@@ -100,11 +107,23 @@ func _test_local_pvp_undo_renju() -> void:
 	gm.start_game()
 	gm.submit_human_move(7, 7)
 	gm.submit_human_move(7, 8)
+	_assert_true(gm.can_undo_last_turn(), "local PvP Renju should expose undo capability after moves")
 	var ok: bool = gm.undo_last_turn()
 	_assert_true(ok, "local PvP Renju undo should succeed")
 	_assert_true(gm.logic.forbidden_enabled, "local PvP Renju should preserve forbidden flag")
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "local PvP Renju should remove one move")
 	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "local PvP Renju should leave white to move")
+
+func _test_local_pvp_undo_to_empty_disables_capability() -> void:
+	var gm = _new_manager()
+	gm.setup_local_pvp(false)
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	_assert_true(gm.can_undo_last_turn(), "local PvP should expose undo capability after one move")
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(ok, "local PvP one-move undo should succeed")
+	_assert_eq(gm.logic.move_history.size(), 0, "local PvP one-move undo should empty history")
+	_assert_false(gm.can_undo_last_turn(), "local PvP should not expose undo capability after undo empties history")
 
 func _test_vs_ai_undo_after_ai_responded_removes_pair() -> void:
 	var gm = _new_manager()
@@ -119,9 +138,11 @@ func _test_vs_ai_undo_after_ai_responded_removes_pair() -> void:
 	gm.start_game()
 	gm.submit_human_move(7, 7)
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7", "7,8"], "VS AI setup should include human and AI moves")
+	_assert_true(gm.can_undo_last_turn(), "VS AI should expose undo capability after AI response")
 	var ok: bool = gm.undo_last_turn()
 	_assert_true(ok, "VS AI undo after AI response should succeed")
 	_assert_eq(gm.logic.move_history.size(), 0, "VS AI after response should remove human+AI pair")
+	_assert_false(gm.can_undo_last_turn(), "VS AI should not expose undo capability after undo empties history")
 	_assert_eq(gm.logic.current_player, GameLogic.BLACK, "VS AI after response should return to human turn")
 	_assert_eq(gm.logic.board[7][7], GameLogic.EMPTY, "VS AI after response should clear human stone")
 	_assert_eq(gm.logic.board[7][8], GameLogic.EMPTY, "VS AI after response should clear AI stone")
@@ -140,9 +161,11 @@ func _test_vs_ai_undo_while_ai_thinking_removes_pending_human_move() -> void:
 	gm.submit_human_move(7, 7)
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "VS AI thinking setup should only have pending human move")
 	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "VS AI thinking setup should be AI turn")
+	_assert_true(gm.can_undo_last_turn(), "VS AI should expose undo capability while AI is thinking after human move")
 	var ok: bool = gm.undo_last_turn()
 	_assert_true(ok, "VS AI undo while AI thinking should succeed")
 	_assert_eq(gm.logic.move_history.size(), 0, "VS AI thinking should remove only pending human move")
+	_assert_false(gm.can_undo_last_turn(), "VS AI should not expose undo capability after undoing pending human move")
 	_assert_eq(gm.logic.current_player, GameLogic.BLACK, "VS AI thinking should return to human turn")
 	_assert_true(ai.cancel_count >= 1, "VS AI thinking undo should cancel AI request")
 
@@ -159,10 +182,40 @@ func _test_human_white_opening_undo_disabled() -> void:
 	gm.start_game()
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "human-white setup should contain only AI opening")
 	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "human-white setup should be human turn")
+	_assert_true(gm.has_method("can_undo_last_turn"), "GameManager should expose can_undo_last_turn")
+	if gm.has_method("can_undo_last_turn"):
+		_assert_true(not gm.can_undo_last_turn(), "human-white opening can_undo_last_turn should be false")
+	var game_scene_source: String = FileAccess.get_file_as_string("res://scenes/game/game.gd")
+	_assert_true(game_scene_source.contains("undo_button.disabled = not GameManager.can_undo_last_turn()"), "UI undo helper should disable from GameManager.can_undo_last_turn")
 	var ok: bool = gm.undo_last_turn()
 	_assert_true(not ok, "human-white opening undo should be disabled before human move")
 	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "human-white disabled undo should keep AI opening")
 	_assert_eq(gm.logic.board[7][7], GameLogic.BLACK, "human-white disabled undo should not clear AI opening")
+
+func _test_undo_replay_failure_preserves_active_request() -> void:
+	var gm = _new_manager()
+	gm.mode = gm.GameMode.VS_AI
+	gm.my_color = GameLogic.BLACK
+	gm.forbidden_enabled = false
+	gm.logic.forbidden_enabled = false
+	gm.players[0] = _human(GameLogic.BLACK)
+	var ai = PendingAI.new()
+	ai.color = GameLogic.WHITE
+	gm.players[1] = ai
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	gm._on_move_decided(7, 8)
+	gm.submit_human_move(8, 7)
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7", "7,8", "8,7"], "replay failure setup should have completed pair plus pending human move")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "replay failure setup should be AI turn")
+	_assert_eq(ai.request_count, 2, "replay failure setup should have active second AI request")
+	_assert_true(ai.move_decided.is_connected(gm._on_move_decided), "replay failure setup should have active move signal")
+	gm.logic.move_history[0] = Vector2i(99, 99)
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(not ok, "undo should fail when replay validation fails")
+	_assert_eq(ai.cancel_count, 0, "failed undo should not cancel active AI request")
+	_assert_true(ai.move_decided.is_connected(gm._on_move_decided), "failed undo should keep active move signal connected")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "failed undo should keep current player")
 
 func _test_invalid_history_replay_does_not_mutate_state() -> void:
 	var logic = GameLogic.new()

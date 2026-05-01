@@ -222,9 +222,7 @@ func _on_history_changed() -> void:
 
 
 func _update_undo_enabled() -> void:
-	undo_button.disabled = GameManager.logic.game_over \
-		or GameManager.logic.move_history.is_empty() \
-		or not (GameManager.mode == GameManager.GameMode.LOCAL_PVP or GameManager.mode == GameManager.GameMode.VS_AI)
+	undo_button.disabled = not GameManager.can_undo_last_turn()
 
 
 func _on_invalid_human_move(message: String) -> void:

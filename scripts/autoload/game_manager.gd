@@ -310,24 +310,29 @@ func accept_reset() -> void:
 	start_game()
 
 
-func undo_last_turn() -> bool:
+func can_undo_last_turn() -> bool:
 	if logic.game_over or mode == GameMode.ONLINE or mode == GameMode.AI_VS_AI:
 		return false
 	if logic.move_history.is_empty():
 		return false
+	return _get_undo_move_count() > 0
+
+
+func undo_last_turn() -> bool:
+	if not can_undo_last_turn():
+		return false
 
 	var undo_count: int = _get_undo_move_count()
-	if undo_count <= 0:
-		return false
-
 	var was_paused: bool = _move_requests_paused
-	_cancel_current_move()
-	_invalid_retries = 0
+	var was_current_move_requested: bool = _has_current_move_request()
 
 	if not logic.undo_moves(undo_count):
-		if not was_paused:
-			_move_requests_paused = false
+		if was_current_move_requested and not _has_current_move_request():
+			_request_current_move()
 		return false
+
+	_cancel_current_move()
+	_invalid_retries = 0
 
 	logic.forbidden_enabled = forbidden_enabled
 	_apply_ai_ruleset()
@@ -411,6 +416,11 @@ func _cancel_current_move() -> void:
 			if p.move_decided.is_connected(_on_move_decided):
 				p.move_decided.disconnect(_on_move_decided)
 			p.cancel()
+
+
+func _has_current_move_request() -> bool:
+	var ctrl = _current_controller()
+	return ctrl != null and ctrl.move_decided.is_connected(_on_move_decided)
 
 
 func _get_player_type_string(player_idx: int) -> String:
