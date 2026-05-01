@@ -16,6 +16,7 @@ var forbidden_enabled: bool = false
 signal stone_placed(row: int, col: int, color: int)
 signal turn_changed(is_my_turn: bool)
 signal game_ended(winner: int)
+signal invalid_human_move(message: String)
 signal opponent_reset_requested()
 signal game_reset()
 
@@ -171,8 +172,15 @@ func start_game() -> void:
 
 func submit_human_move(row: int, col: int) -> void:
 	var ctrl = _current_controller()
-	if ctrl.player_type == _PlayerController.Type.LOCAL_HUMAN:
-		ctrl.submit_move(row, col)
+	if ctrl == null or ctrl.player_type != _PlayerController.Type.LOCAL_HUMAN:
+		return
+	if not logic.can_place_stone(row, col):
+		invalid_human_move.emit("这里不能落子")
+		return
+	if logic.is_forbidden_move(row, col, logic.current_player):
+		invalid_human_move.emit("黑棋禁手，不能落子")
+		return
+	ctrl.submit_move(row, col)
 
 
 func _request_current_move() -> void:

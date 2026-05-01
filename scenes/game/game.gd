@@ -6,6 +6,7 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 @onready var turn_label: Label = %TurnLabel
 @onready var color_label: Label = %ColorLabel
 @onready var move_label: Label = %MoveLabel
+@onready var message_label: Label = %MessageLabel
 @onready var resign_button: Button = %ResignButton
 @onready var game_over_panel: PanelContainer = %GameOverPanel
 @onready var result_label: Label = %ResultLabel
@@ -13,11 +14,14 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 @onready var main_menu_button: Button = %MainMenuButton
 @onready var reset_request_panel: PanelContainer = %ResetRequestPanel
 
+var _message_token: int = 0
+
 
 func _ready() -> void:
 	GameManager.turn_changed.connect(_on_turn_changed)
 	GameManager.stone_placed.connect(_on_stone_placed)
 	GameManager.game_ended.connect(_on_game_ended)
+	GameManager.invalid_human_move.connect(_on_invalid_human_move)
 	GameManager.opponent_reset_requested.connect(_on_opponent_reset_requested)
 	GameManager.game_reset.connect(_on_game_reset)
 
@@ -115,6 +119,21 @@ func _on_turn_changed(_is_my_turn: bool) -> void:
 
 func _on_stone_placed(_row: int, _col: int, _color: int) -> void:
 	move_label.text = "步数：%d" % GameManager.logic.move_history.size()
+	message_label.text = ""
+
+
+func _on_invalid_human_move(message: String) -> void:
+	_show_message(message)
+
+
+func _show_message(message: String) -> void:
+	_message_token += 1
+	var token: int = _message_token
+	message_label.text = message
+	message_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.25))
+	await get_tree().create_timer(1.6).timeout
+	if token == _message_token:
+		message_label.text = ""
 
 
 func _on_game_ended(winner: int) -> void:
@@ -122,11 +141,6 @@ func _on_game_ended(winner: int) -> void:
 	play_again_button.visible = true
 	play_again_button.text = "再来一局"
 	play_again_button.disabled = false
-
-	if GameManager.logic.game_end_reason == _GameLogic.END_REASON_FORBIDDEN:
-		result_label.text = "白方获胜：黑棋禁手"
-		result_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-		return
 
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
@@ -155,6 +169,7 @@ func _on_game_reset() -> void:
 	game_over_panel.visible = false
 	reset_request_panel.visible = false
 	move_label.text = "步数：0"
+	message_label.text = ""
 
 
 func _on_resign_pressed() -> void:

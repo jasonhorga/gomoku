@@ -48,14 +48,8 @@ func place_stone(row: int, col: int) -> bool:
 	if board[row][col] != EMPTY:
 		return false
 
-	if forbidden_enabled and current_player == BLACK and forbidden_checker.is_forbidden_black(board, row, col):
-		board[row][col] = BLACK
-		move_history.append(Vector2i(row, col))
-		game_over = true
-		winner = WHITE
-		game_end_reason = END_REASON_FORBIDDEN
-		current_player = WHITE
-		return true
+	if is_forbidden_move(row, col, current_player):
+		return false
 
 	board[row][col] = current_player
 	move_history.append(Vector2i(row, col))
@@ -116,3 +110,11 @@ func get_last_move() -> Vector2i:
 
 func is_forbidden_move(row: int, col: int, player: int) -> bool:
 	return forbidden_enabled and player == BLACK and forbidden_checker.is_forbidden_black(board, row, col)
+
+
+func can_place_stone(row: int, col: int) -> bool:
+	if game_over:
+		return false
+	if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:
+		return false
+	return board[row][col] == EMPTY
