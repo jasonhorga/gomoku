@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -9,18 +10,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "assets" / "fonts" / "cjk_subset.otf"
+SCAN_ROOTS = ("scenes", "scripts")
 SCAN_SUFFIXES = {".gd", ".tscn"}
-BASE_CHARS = "五子棋黑白方玩家对手回合步数平局胜负赢输禁手规则自由开始返回主菜单新对局悔棋复盘上一下一步从头自动播放暂停继续速度即时快普通慢批量进度完成记录就绪不能落子确认取消认输停止等待连接失败服务器创建端口可能被占用检查重试神经网络蒙特卡洛启发搜索随机实验室本地双人电脑人机观看战斗最后一局，。！？：；（）·●○▶"
+SCAN_FILES = ("project.godot",)
+PRUNE_DIRS = {".git", ".godot", "build", "__pycache__"}
+PRINTABLE_ASCII = "".join(chr(codepoint) for codepoint in range(0x20, 0x7F))
+BASE_CHARS = PRINTABLE_ASCII + "五子棋黑白方玩家对手回合步数平局胜负赢输禁手规则自由开始返回主菜单新对局悔棋复盘上一下一步从头自动播放暂停继续速度即时快普通慢批量进度完成记录就绪不能落子确认取消认输停止等待连接失败服务器创建端口可能被占用检查重试神经网络蒙特卡洛启发搜索随机实验室本地双人电脑人机观看战斗最后一局，。！？：；（）·●○▶"
 CJK_RE = re.compile(r"[　-〿㐀-䶿一-鿿＀-￯]")
 
 
 def iter_text_files(root: Path):
-    for path in root.rglob("*"):
-        if path.is_dir():
-            if path.name in {".git", ".godot", "build", "__pycache__"}:
-                dirs = []
+    for root_name in SCAN_ROOTS:
+        scan_root = root / root_name
+        if not scan_root.exists():
             continue
-        if path.suffix in SCAN_SUFFIXES:
+        for dirpath, dirnames, filenames in os.walk(scan_root):
+            dirnames[:] = sorted(name for name in dirnames if name not in PRUNE_DIRS)
+            for filename in sorted(filenames):
+                path = Path(dirpath) / filename
+                if path.suffix in SCAN_SUFFIXES:
+                    yield path
+
+    for filename in SCAN_FILES:
+        path = root / filename
+        if path.is_file():
             yield path
 
 
