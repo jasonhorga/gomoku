@@ -163,6 +163,7 @@ func _describe_engine(engine) -> String:
 # ---- Core game loop ----
 
 func start_game() -> void:
+	last_game_record = null
 	_move_requests_paused = false
 	_move_request_epoch += 1
 	logic.reset()
@@ -461,7 +462,8 @@ func prepare_replay_from_path(path: String) -> bool:
 	return true
 
 
-func _save_game_record() -> void:
+func _save_game_record(path_override: String = "") -> bool:
+	last_game_record = null
 	var GameRecord = load("res://scripts/data/game_record.gd")
 	var record = GameRecord.new()
 	record.timestamp = Time.get_datetime_string_from_system().replace("T", "_").replace(":", "-")
@@ -477,9 +479,13 @@ func _save_game_record() -> void:
 	record.total_moves = logic.move_history.size()
 	for m in logic.move_history:
 		record.moves.append([m.x, m.y])
-	var path = GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
+	var path: String = path_override
+	if path.is_empty():
+		path = GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
 	if GameRecord.save_to_file(record, path):
 		last_game_record = record
+		return true
+	return false
 
 
 func _disconnect_network_signals() -> void:

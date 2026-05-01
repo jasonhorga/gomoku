@@ -23,7 +23,9 @@ func to_dict() -> Dictionary:
 	}
 
 
-static func from_dict(d: Dictionary):  # returns GameRecord
+static func from_dict(d: Dictionary):  # returns GameRecord or null
+	if not _validate_record_dict(d):
+		return null
 	var record = load("res://scripts/data/game_record.gd").new()
 	record.timestamp = d.get("timestamp", "")
 	record.mode = d.get("mode", "")
@@ -31,9 +33,40 @@ static func from_dict(d: Dictionary):  # returns GameRecord
 	record.white_type = d.get("white", "")
 	record.ruleset = d.get("ruleset", "free")
 	record.moves = d.get("moves", [])
-	record.result = d.get("result", 0)
-	record.total_moves = d.get("total_moves", 0)
+	record.result = int(d.get("result", 0))
+	record.total_moves = int(d.get("total_moves", 0))
 	return record
+
+
+static func _validate_record_dict(d: Dictionary) -> bool:
+	for field in ["timestamp", "mode", "black", "white"]:
+		if d.has(field) and typeof(d[field]) != TYPE_STRING:
+			return false
+	if d.has("ruleset"):
+		if typeof(d["ruleset"]) != TYPE_STRING:
+			return false
+		if d["ruleset"] != "free" and d["ruleset"] != "renju":
+			return false
+	if not d.has("moves") or typeof(d["moves"]) != TYPE_ARRAY:
+		return false
+	for move in d["moves"]:
+		if typeof(move) != TYPE_ARRAY or move.size() != 2:
+			return false
+		if not _is_number(move[0]) or not _is_number(move[1]):
+			return false
+	if not d.has("result") or not _is_number(d["result"]):
+		return false
+	var result: int = int(d["result"])
+	if result < 0 or result > 2:
+		return false
+	if d.has("total_moves") and not _is_number(d["total_moves"]):
+		return false
+	return true
+
+
+static func _is_number(value: Variant) -> bool:
+	var t: int = typeof(value)
+	return t == TYPE_INT or t == TYPE_FLOAT
 
 
 func to_json() -> String:

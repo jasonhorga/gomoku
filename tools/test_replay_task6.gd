@@ -23,9 +23,13 @@ func _ready() -> void:
 func _run_tests() -> void:
 	_test_load_from_file_missing_returns_null()
 	_test_load_from_file_invalid_json_returns_null()
+	_test_load_from_file_parseable_malformed_json_returns_null()
 	_test_prepare_replay_from_last_game_uses_saved_record()
+	_test_start_game_clears_stale_last_game_record()
+	_test_save_game_record_failure_clears_stale_last_game_record()
 	_test_prepare_replay_from_path_loads_record()
 	await _test_replay_scene_loads_and_controls_render_board()
+	await _test_replay_scene_handles_no_record_and_empty_moves()
 
 
 func _assert_true(condition: bool, message: String) -> void:
@@ -69,6 +73,24 @@ func _test_load_from_file_invalid_json_returns_null() -> void:
 	_assert_true(loaded == null, "invalid JSON record should return null")
 
 
+func _test_load_from_file_parseable_malformed_json_returns_null() -> void:
+	var malformed_records: Array[String] = [
+		"[]",
+		"{\"moves\":\"not-array\",\"result\":1}",
+		"{\"moves\":[[7]],\"result\":1}",
+		"{\"moves\":[[7,\"x\"]],\"result\":1}",
+		"{\"moves\":[[7,8]],\"result\":3}",
+		"{\"moves\":[[7,8]],\"result\":1,\"total_moves\":\"one\"}",
+		"{\"moves\":[[7,8]],\"result\":1,\"ruleset\":\"freestyle\"}",
+	]
+	for text in malformed_records:
+		var file = FileAccess.open(temp_path, FileAccess.WRITE)
+		file.store_string(text)
+		file.close()
+		var loaded = GameRecord.load_from_file(temp_path)
+		_assert_true(loaded == null, "parseable malformed record should return null: %s" % text)
+
+
 func _test_prepare_replay_from_last_game_uses_saved_record() -> void:
 	var gm = get_node("/root/GameManager")
 	_assert_true("last_game_record" in gm, "GameManager should expose last_game_record")
@@ -86,6 +108,34 @@ func _test_prepare_replay_from_last_game_uses_saved_record() -> void:
 	ok = gm.prepare_replay_from_last_game()
 	_assert_false(ok, "prepare_replay_from_last_game should fail cleanly without last record")
 	_assert_true(gm.replay_record == null, "prepare_replay_from_last_game should clear stale replay_record on failure")
+
+
+func _test_start_game_clears_stale_last_game_record() -> void:
+	var gm = get_node("/root/GameManager")
+	if not ("last_game_record" in gm):
+		_assert_true(false, "GameManager should expose last_game_record")
+		return
+	gm.setup_local_pvp(false)
+	gm.last_game_record = _make_record()
+	gm.start_game()
+	_assert_true(gm.last_game_record == null, "start_game should clear stale last_game_record")
+	gm.pause_current_move()
+
+
+func _test_save_game_record_failure_clears_stale_last_game_record() -> void:
+	var gm = get_node("/root/GameManager")
+	if not ("last_game_record" in gm and gm.has_method("_save_game_record")):
+		_assert_true(false, "GameManager should expose last_game_record and _save_game_record")
+		return
+	gm.setup_local_pvp(false)
+	gm.start_game()
+	gm.pause_current_move()
+	gm.last_game_record = _make_record()
+	gm.logic.winner = GameLogic.BLACK
+	gm.logic.move_history.clear()
+	gm.logic.move_history.append(Vector2i(7, 7))
+	gm._save_game_record("/proc/task6_replay_record_should_not_save.json")
+	_assert_true(gm.last_game_record == null, "failed save should clear stale last_game_record")
 
 
 func _test_prepare_replay_from_path_loads_record() -> void:
@@ -133,3 +183,38 @@ func _test_replay_scene_loads_and_controls_render_board() -> void:
 	_assert_eq(replay.cursor, 0, "previous control should decrement cursor")
 	_assert_eq(replay.replay_board[7][7], GameLogic.EMPTY, "previous control should remove last visible move")
 	replay.queue_free()
+
+
+func _test_replay_scene_handles_no_record_and_empty_moves() -> void:
+	var gm = get_node("/root/GameManager")
+	if not ("replay_record" in gm):
+		_assert_true(false, "GameManager should expose replay_record for replay scene")
+		return
+	var scene: PackedScene = load("res://scenes/replay/replay.tscn")
+	_assert_true(scene != null, "replay scene should load for empty state tests")
+	if scene == null:
+		return
+	gm.replay_record = null
+	var no_record_replay = scene.instantiate()
+	add_child(no_record_replay)
+	await get_tree().process_frame
+	_assert_eq(no_record_replay.cursor, 0, "no-record replay should start at cursor zero")
+	_assert_true(no_record_replay.prev_button.disabled, "no-record replay should disable previous")
+	_assert_true(no_record_replay.start_button.disabled, "no-record replay should disable start")
+	_assert_true(no_record_replay.next_button.disabled, "no-record replay should disable next")
+	_assert_true(no_record_replay.play_button.disabled, "no-record replay should disable play")
+	no_record_replay.queue_free()
+
+	var empty_record = _make_record()
+	empty_record.moves = []
+	empty_record.total_moves = 0
+	gm.replay_record = empty_record
+	var empty_replay = scene.instantiate()
+	add_child(empty_replay)
+	await get_tree().process_frame
+	_assert_eq(empty_replay.cursor, 0, "empty replay should start at cursor zero")
+	_assert_true(empty_replay.prev_button.disabled, "empty replay should disable previous")
+	_assert_true(empty_replay.start_button.disabled, "empty replay should disable start")
+	_assert_true(empty_replay.next_button.disabled, "empty replay should disable next")
+	_assert_true(empty_replay.play_button.disabled, "empty replay should disable play")
+	empty_replay.queue_free()

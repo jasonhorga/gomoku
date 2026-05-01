@@ -244,6 +244,8 @@ func _show_message(message: String) -> void:
 func _on_game_ended(winner: int) -> void:
 	_update_undo_enabled()
 	game_over_panel.visible = true
+	replay_button.visible = GameManager.last_game_record != null
+	replay_button.disabled = GameManager.last_game_record == null
 	play_again_button.visible = true
 	play_again_button.text = "再来一局"
 	play_again_button.disabled = false
@@ -274,6 +276,8 @@ func _on_game_ended(winner: int) -> void:
 func _on_game_reset() -> void:
 	game_over_panel.visible = false
 	reset_request_panel.visible = false
+	replay_button.visible = true
+	replay_button.disabled = false
 	move_label.text = "步数：0"
 	message_label.text = ""
 	_update_undo_enabled()
@@ -324,11 +328,13 @@ func _on_resign_pressed() -> void:
 			var opponent_color: int = _GameLogic.WHITE if GameManager.my_color == _GameLogic.BLACK else _GameLogic.BLACK
 			GameManager.logic.game_over = true
 			GameManager.logic.winner = opponent_color
+			GameManager.last_game_record = null
 			GameManager.game_ended.emit(opponent_color)
 		GameManager.GameMode.ONLINE:
 			var opponent_color: int = _GameLogic.WHITE if GameManager.my_color == _GameLogic.BLACK else _GameLogic.BLACK
 			GameManager.logic.game_over = true
 			GameManager.logic.winner = opponent_color
+			GameManager.last_game_record = null
 			GameManager.game_ended.emit(opponent_color)
 			NetworkManager.send_move(-1, -1)  # resign signal
 		GameManager.GameMode.AI_VS_AI:
@@ -352,6 +358,8 @@ func _on_replay_pressed() -> void:
 		_show_message("暂无可复盘的棋局")
 		return
 	GameManager._cancel_current_move()
+	if GameManager.mode == GameManager.GameMode.ONLINE:
+		NetworkManager.disconnect_from_game()
 	GameManager.replay_return_scene = "res://scenes/main_menu/main_menu.tscn"
 	get_tree().change_scene_to_file("res://scenes/replay/replay.tscn")
 
@@ -382,7 +390,10 @@ func _on_decline_reset() -> void:
 
 
 func _on_player_disconnected(_id: int) -> void:
+	GameManager.last_game_record = null
 	game_over_panel.visible = true
+	replay_button.visible = false
+	replay_button.disabled = true
 	result_label.text = "对手已断开"
 	result_label.add_theme_color_override("font_color", Color.RED)
 	play_again_button.visible = false
