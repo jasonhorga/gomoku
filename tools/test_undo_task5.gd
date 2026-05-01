@@ -1,0 +1,154 @@
+extends Node
+
+const GameLogic = preload("res://scripts/game_logic.gd")
+const PlayerController = preload("res://scripts/player/player_controller.gd")
+const HumanPlayer = preload("res://scripts/player/human_player.gd")
+
+class InstantAI:
+	extends PlayerController
+	var ai_engine = null
+	var move: Vector2i
+
+	func _init(p_move: Vector2i) -> void:
+		player_type = Type.LOCAL_AI
+		move = p_move
+
+	func request_move(_board: Array, _current_player: int, _move_history: Array) -> void:
+		move_decided.emit(move.x, move.y)
+
+	func cancel() -> void:
+		pass
+
+class PendingAI:
+	extends PlayerController
+	var ai_engine = null
+	var cancel_count: int = 0
+	var request_count: int = 0
+
+	func _init() -> void:
+		player_type = Type.LOCAL_AI
+
+	func request_move(_board: Array, _current_player: int, _move_history: Array) -> void:
+		request_count += 1
+
+	func cancel() -> void:
+		cancel_count += 1
+
+var failures: Array[String] = []
+
+func _ready() -> void:
+	_run_tests()
+	if failures.is_empty():
+		print("UNDO_TASK5_TESTS PASS")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error(failure)
+		get_tree().quit(1)
+
+func _run_tests() -> void:
+	_test_transactional_rebuild_preserves_state_on_invalid_history()
+	_test_vs_ai_undo_while_ai_thinking_removes_pending_human_move()
+	_test_vs_ai_undo_after_ai_responded_removes_pair()
+
+func _assert_true(condition: bool, message: String) -> void:
+	if not condition:
+		failures.append(message)
+
+func _assert_eq(actual, expected, message: String) -> void:
+	if actual != expected:
+		failures.append("%s expected=%s actual=%s" % [message, str(expected), str(actual)])
+
+func _new_manager():
+	var manager = get_node("/root/GameManager")
+	manager._move_requests_paused = false
+	manager._move_request_epoch = 0
+	manager.ai_move_delay = 0.5
+	manager._invalid_retries = 0
+	return manager
+
+func _human(color: int):
+	var human = HumanPlayer.new()
+	human.color = color
+	return human
+
+func _move_list(history: Array[Vector2i]) -> Array[String]:
+	var out: Array[String] = []
+	for move in history:
+		out.append("%d,%d" % [move.x, move.y])
+	return out
+
+func _test_vs_ai_undo_after_ai_responded_removes_pair() -> void:
+	var gm = _new_manager()
+	gm.mode = gm.GameMode.VS_AI
+	gm.my_color = GameLogic.BLACK
+	gm.forbidden_enabled = false
+	gm.logic.forbidden_enabled = false
+	gm.players[0] = _human(GameLogic.BLACK)
+	var ai = InstantAI.new(Vector2i(7, 8))
+	ai.color = GameLogic.WHITE
+	gm.players[1] = ai
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7", "7,8"], "VS AI setup should include human and AI moves")
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(ok, "VS AI undo after AI response should succeed")
+	_assert_eq(gm.logic.move_history.size(), 0, "VS AI after response should remove human+AI pair")
+	_assert_eq(gm.logic.current_player, GameLogic.BLACK, "VS AI after response should return to human turn")
+	_assert_eq(gm.logic.board[7][7], GameLogic.EMPTY, "VS AI after response should clear human stone")
+	_assert_eq(gm.logic.board[7][8], GameLogic.EMPTY, "VS AI after response should clear AI stone")
+
+func _test_vs_ai_undo_while_ai_thinking_removes_pending_human_move() -> void:
+	var gm = _new_manager()
+	gm.mode = gm.GameMode.VS_AI
+	gm.my_color = GameLogic.BLACK
+	gm.forbidden_enabled = false
+	gm.logic.forbidden_enabled = false
+	gm.players[0] = _human(GameLogic.BLACK)
+	var ai = PendingAI.new()
+	ai.color = GameLogic.WHITE
+	gm.players[1] = ai
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "VS AI thinking setup should only have pending human move")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "VS AI thinking setup should be AI turn")
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(ok, "VS AI undo while AI thinking should succeed")
+	_assert_eq(gm.logic.move_history.size(), 0, "VS AI thinking should remove only pending human move")
+	_assert_eq(gm.logic.current_player, GameLogic.BLACK, "VS AI thinking should return to human turn")
+	_assert_true(ai.cancel_count >= 1, "VS AI thinking undo should cancel AI request")
+
+func _test_human_white_opening_undo_disabled() -> void:
+	var gm = _new_manager()
+	gm.mode = gm.GameMode.VS_AI
+	gm.my_color = GameLogic.WHITE
+	gm.forbidden_enabled = false
+	gm.logic.forbidden_enabled = false
+	var ai = InstantAI.new(Vector2i(7, 7))
+	ai.color = GameLogic.BLACK
+	gm.players[0] = ai
+	gm.players[1] = _human(GameLogic.WHITE)
+	gm.start_game()
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "human-white setup should contain only AI opening")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "human-white setup should be human turn")
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(not ok, "human-white opening undo should be disabled before human move")
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "human-white disabled undo should keep AI opening")
+	_assert_eq(gm.logic.board[7][7], GameLogic.BLACK, "human-white disabled undo should not clear AI opening")
+
+func _test_invalid_history_replay_does_not_mutate_state() -> void:
+	var logic = GameLogic.new()
+	logic.place_stone(7, 7)
+	logic.place_stone(7, 8)
+	var before_history: Array[String] = _move_list(logic.move_history)
+	var before_current: int = logic.current_player
+	var before_first: int = logic.board[7][7]
+	var before_second: int = logic.board[7][8]
+	var invalid: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1)]
+	var ok: bool = logic.rebuild_from_history(invalid)
+	_assert_true(not ok, "invalid history rebuild should fail")
+	_assert_eq(_move_list(logic.move_history), before_history, "invalid history rebuild should restore history")
+	_assert_eq(logic.current_player, before_current, "invalid history rebuild should restore current player")
+	_assert_eq(logic.board[7][7], before_first, "invalid history rebuild should restore first stone")
+	_assert_eq(logic.board[7][8], before_second, "invalid history rebuild should restore second stone")
+	_assert_eq(logic.board[1][1], GameLogic.EMPTY, "invalid history rebuild should not leave partial replay stone")

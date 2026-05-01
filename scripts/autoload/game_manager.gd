@@ -316,13 +316,13 @@ func undo_last_turn() -> bool:
 	if logic.move_history.is_empty():
 		return false
 
+	var undo_count: int = _get_undo_move_count()
+	if undo_count <= 0:
+		return false
+
 	var was_paused: bool = _move_requests_paused
 	_cancel_current_move()
 	_invalid_retries = 0
-
-	var undo_count: int = 1
-	if mode == GameMode.VS_AI and logic.move_history.size() > 1:
-		undo_count = 2
 
 	if not logic.undo_moves(undo_count):
 		if not was_paused:
@@ -355,6 +355,17 @@ func _on_reset_accepted() -> void:
 
 
 # ---- Helpers ----
+
+func _get_undo_move_count() -> int:
+	if mode != GameMode.VS_AI:
+		return 1
+	var current_ctrl = _current_controller()
+	if current_ctrl != null and current_ctrl.player_type == _PlayerController.Type.LOCAL_HUMAN:
+		if logic.move_history.size() < 2:
+			return 0
+		return 2
+	return 1
+
 
 func _current_controller():
 	return players[_color_index(logic.current_player)]
