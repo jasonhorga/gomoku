@@ -12,6 +12,9 @@ var my_color: int = -1
 var is_my_turn: bool = false
 var ai_move_delay: float = 0.5
 var forbidden_enabled: bool = false
+var last_game_record = null
+var replay_record = null
+var replay_return_scene: String = "res://scenes/main_menu/main_menu.tscn"
 var _move_requests_paused: bool = false
 var _move_request_epoch: int = 0
 
@@ -440,6 +443,24 @@ func _get_player_type_string(player_idx: int) -> String:
 			return "unknown"
 
 
+func prepare_replay_from_last_game() -> bool:
+	if last_game_record == null:
+		replay_record = null
+		return false
+	replay_record = last_game_record
+	return true
+
+
+func prepare_replay_from_path(path: String) -> bool:
+	var GameRecord = load("res://scripts/data/game_record.gd")
+	var record = GameRecord.load_from_file(path)
+	if record == null:
+		replay_record = null
+		return false
+	replay_record = record
+	return true
+
+
 func _save_game_record() -> void:
 	var GameRecord = load("res://scripts/data/game_record.gd")
 	var record = GameRecord.new()
@@ -457,7 +478,8 @@ func _save_game_record() -> void:
 	for m in logic.move_history:
 		record.moves.append([m.x, m.y])
 	var path = GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
-	GameRecord.save_to_file(record, path)
+	if GameRecord.save_to_file(record, path):
+		last_game_record = record
 
 
 func _disconnect_network_signals() -> void:

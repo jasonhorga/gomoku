@@ -27,6 +27,7 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 @onready var game_over_panel: PanelContainer = %GameOverPanel
 @onready var result_label: Label = %ResultLabel
 @onready var play_again_button: Button = %PlayAgainButton
+@onready var replay_button: Button = %ReplayButton
 @onready var main_menu_button: Button = %MainMenuButton
 @onready var reset_request_panel: PanelContainer = %ResetRequestPanel
 
@@ -49,6 +50,7 @@ func _ready() -> void:
 	back_to_menu_button.pressed.connect(_confirm_main_menu)
 	resign_button.pressed.connect(_on_resign_pressed)
 	play_again_button.pressed.connect(_on_play_again_pressed)
+	replay_button.pressed.connect(_on_replay_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	%AcceptResetButton.pressed.connect(_on_accept_reset)
 	%DeclineResetButton.pressed.connect(_on_decline_reset)
@@ -343,6 +345,15 @@ func _on_play_again_pressed() -> void:
 		GameManager.request_reset()
 	else:
 		GameManager.request_reset()
+
+
+func _on_replay_pressed() -> void:
+	if not GameManager.prepare_replay_from_last_game():
+		_show_message("暂无可复盘的棋局")
+		return
+	GameManager._cancel_current_move()
+	GameManager.replay_return_scene = "res://scenes/main_menu/main_menu.tscn"
+	get_tree().change_scene_to_file("res://scenes/replay/replay.tscn")
 
 
 func _on_main_menu_pressed() -> void:

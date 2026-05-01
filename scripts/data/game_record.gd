@@ -44,6 +44,8 @@ static func from_json(text: String):  # returns GameRecord or null
 	var json = JSON.new()
 	if json.parse(text) != OK:
 		return null
+	if typeof(json.data) != TYPE_DICTIONARY:
+		return null
 	return from_dict(json.data)
 
 

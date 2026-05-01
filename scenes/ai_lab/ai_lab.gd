@@ -193,7 +193,12 @@ func _on_replay_last_batch_pressed() -> void:
 	if last_batch_record_path.is_empty():
 		replay_last_batch_button.disabled = true
 		return
-	stats_label.text = "复盘功能将在后续版本启用：%s" % last_batch_record_path.get_file()
+	if not GameManager.prepare_replay_from_path(last_batch_record_path):
+		stats_label.text = "无法载入复盘：%s" % last_batch_record_path.get_file()
+		replay_last_batch_button.disabled = true
+		return
+	GameManager.replay_return_scene = "res://scenes/ai_lab/ai_lab.tscn"
+	get_tree().change_scene_to_file("res://scenes/replay/replay.tscn")
 
 
 func _on_back_pressed() -> void:
