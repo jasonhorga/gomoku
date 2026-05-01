@@ -93,6 +93,23 @@ def test_renju_known_cases(cli: str, diff: 'Diff'):
     })
     diff.expect("renju.double_three_forbidden", True, bool(sw.get("forbidden", False)))
 
+    # VCF/VCT must not treat forbidden black overlines as forced wins when
+    # Renju filtering is enabled. Free-Gomoku behavior should remain unchanged.
+    board = empty_board()
+    for c in range(3, 8):
+        board[7][c] = BLACK
+    for op in ("find_vcf", "find_vct"):
+        sw_free = call_swift(cli, {
+            "op": op, "board": board, "attacker": BLACK,
+            "max_depth": 4, "max_branch": 6, "forbidden_enabled": False,
+        })
+        diff.expect(f"renju.{op}.free_overline_available", [7, 2], sw_free.get("move"))
+        sw_renju = call_swift(cli, {
+            "op": op, "board": board, "attacker": BLACK,
+            "max_depth": 4, "max_branch": 6, "forbidden_enabled": True,
+        })
+        diff.expect(f"renju.{op}.forbidden_overline_suppressed", None, sw_renju.get("move"))
+
 
 class Diff:
     def __init__(self):

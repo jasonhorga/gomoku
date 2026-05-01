@@ -223,14 +223,16 @@ public final class MCTSEngine {
 			var board = game.board
 			if let m = VcfSearch.findVcf(
 					board: &board, attacker: player,
-					maxDepth: vcfDepth, maxBranch: vcfBranch),
+					maxDepth: vcfDepth, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
 					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 			var oppBoard = game.board
 			if let m = VcfSearch.findVcf(
 					board: &oppBoard, attacker: opponent,
-					maxDepth: vcfDepth, maxBranch: vcfBranch),
+					maxDepth: vcfDepth, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
 					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
@@ -242,14 +244,16 @@ public final class MCTSEngine {
 			var board = game.board
 			if let m = VctSearch.findVct(
 					board: &board, attacker: player,
-					maxDepth: 6, maxBranch: vcfBranch),
+					maxDepth: 6, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
 					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 			var oppBoard = game.board
 			if let m = VctSearch.findVct(
 					board: &oppBoard, attacker: opponent,
-					maxDepth: 6, maxBranch: vcfBranch),
+					maxDepth: 6, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
 					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}

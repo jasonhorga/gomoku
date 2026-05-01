@@ -147,20 +147,64 @@ public enum VcfSearch {
 	/// restored before return. Defaults mirror Python (depth 10, branch 8).
 	public static func findVcf(
 		board: inout [Int8], attacker: Int8,
-		maxDepth: Int = 10, maxBranch: Int = 8
+		maxDepth: Int = 10, maxBranch: Int = 8,
+		forbiddenEnabled: Bool = false
 	) -> (row: Int, col: Int)? {
 		return vcfRecurse(board: &board, attacker: attacker,
-		                  depth: maxDepth, maxBranch: maxBranch)
+		                  depth: maxDepth, maxBranch: maxBranch,
+		                  forbiddenEnabled: forbiddenEnabled)
+	}
+
+	static func isLegalMove(
+		board: [Int8], row: Int, col: Int, player: Int8, forbiddenEnabled: Bool
+	) -> Bool {
+		if board[GameLogic.idx(row, col)] != 0 { return false }
+		if !forbiddenEnabled || player != Stone.black.rawValue { return true }
+		var tmpBoard = board
+		return !RenjuForbidden.isForbiddenBlack(board: &tmpBoard, row: row, col: col)
+	}
+
+	static func legalFourThreat(
+		board: [Int8], kind: FourKind?, blocks: [(row: Int, col: Int)],
+		attacker: Int8, forbiddenEnabled: Bool
+	) -> (kind: FourKind, blocks: [(row: Int, col: Int)])? {
+		guard let threatKind = kind,
+				threatKind == .openFour || threatKind == .halfFour else {
+			return nil
+		}
+		if !forbiddenEnabled || attacker != Stone.black.rawValue {
+			return (threatKind, blocks)
+		}
+
+		let legalBlocks = blocks.filter {
+			isLegalMove(
+				board: board, row: $0.row, col: $0.col, player: attacker,
+				forbiddenEnabled: forbiddenEnabled)
+		}
+		let uniqueCount = Set(legalBlocks.map {
+			$0.row * GameLogic.boardSize + $0.col
+		}).count
+		if uniqueCount == 0 { return nil }
+		if threatKind == .openFour && uniqueCount < 2 {
+			return (.halfFour, legalBlocks)
+		}
+		return (threatKind, legalBlocks)
 	}
 
 	private static func vcfRecurse(
-		board: inout [Int8], attacker: Int8, depth: Int, maxBranch: Int
+		board: inout [Int8], attacker: Int8, depth: Int, maxBranch: Int,
+		forbiddenEnabled: Bool
 	) -> (row: Int, col: Int)? {
 		if depth <= 0 { return nil }
 		let defender: Int8 = attacker == 1 ? 2 : 1
 
 		// Immediate five check.
 		for (r, c) in candidateMoves(board: board, radius: 1) {
+			if !isLegalMove(
+					board: board, row: r, col: c, player: attacker,
+					forbiddenEnabled: forbiddenEnabled) {
+				continue
+			}
 			if makesFive(board: board, row: r, col: c, player: attacker) {
 				return (r, c)
 			}
@@ -171,12 +215,20 @@ public enum VcfSearch {
 		var fourMoves: [(priority: Int, row: Int, col: Int,
 		                 kind: FourKind, blocks: [(row: Int, col: Int)])] = []
 		for (r, c) in candidateMoves(board: board, radius: 2) {
+			if !isLegalMove(
+					board: board, row: r, col: c, player: attacker,
+					forbiddenEnabled: forbiddenEnabled) {
+				continue
+			}
 			board[GameLogic.idx(r, c)] = attacker
 			let info = fourInfo(board: board, row: r, col: c, player: attacker)
+			let legalThreat = legalFourThreat(
+				board: board, kind: info.kind, blocks: info.blockCells,
+				attacker: attacker, forbiddenEnabled: forbiddenEnabled)
 			board[GameLogic.idx(r, c)] = 0
-			if info.kind == .openFour || info.kind == .halfFour {
-				let prio = info.kind == .openFour ? 2 : 1
-				fourMoves.append((prio, r, c, info.kind!, info.blockCells))
+			if let threat = legalThreat {
+				let prio = threat.kind == .openFour ? 2 : 1
+				fourMoves.append((prio, r, c, threat.kind, threat.blocks))
 			}
 		}
 
@@ -193,6 +245,11 @@ public enum VcfSearch {
 			// Skip if defender wins immediately (five in one).
 			var defenderWins = false
 			for (dr, dc) in candidateMoves(board: board, radius: 1) {
+				if !isLegalMove(
+						board: board, row: dr, col: dc, player: defender,
+						forbiddenEnabled: forbiddenEnabled) {
+					continue
+				}
 				if makesFive(board: board, row: dr, col: dc, player: defender) {
 					defenderWins = true
 					break
@@ -222,10 +279,15 @@ public enum VcfSearch {
 			for packed in uniqBlocks.sorted() {
 				let br = packed / GameLogic.boardSize
 				let bc = packed % GameLogic.boardSize
-				if board[GameLogic.idx(br, bc)] != 0 { continue }
+				if !isLegalMove(
+						board: board, row: br, col: bc, player: defender,
+						forbiddenEnabled: forbiddenEnabled) {
+					continue
+				}
 				board[GameLogic.idx(br, bc)] = defender
 				let sub = vcfRecurse(board: &board, attacker: attacker,
-				                     depth: depth - 1, maxBranch: maxBranch)
+				                     depth: depth - 1, maxBranch: maxBranch,
+				                     forbiddenEnabled: forbiddenEnabled)
 				board[GameLogic.idx(br, bc)] = 0
 				if sub == nil {
 					allBlocked = false

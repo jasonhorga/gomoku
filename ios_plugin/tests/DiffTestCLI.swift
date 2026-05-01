@@ -206,10 +206,12 @@ struct DiffTestCLI {
 			}
 			let depth = req["max_depth"] as? Int ?? 6
 			let branch = req["max_branch"] as? Int ?? 8
+			let forbiddenEnabled = req["forbidden_enabled"] as? Bool ?? false
 			var board = game.board
 			let move = VcfSearch.findVcf(
 				board: &board, attacker: Int8(attacker),
-				maxDepth: depth, maxBranch: branch)
+				maxDepth: depth, maxBranch: branch,
+				forbiddenEnabled: forbiddenEnabled)
 			if let m = move {
 				return ["move": [m.row, m.col]]
 			}
@@ -247,10 +249,12 @@ struct DiffTestCLI {
 			}
 			let depth = req["max_depth"] as? Int ?? 4
 			let branch = req["max_branch"] as? Int ?? 6
+			let forbiddenEnabled = req["forbidden_enabled"] as? Bool ?? false
 			var board = game.board
 			let move = VctSearch.findVct(
 				board: &board, attacker: Int8(attacker),
-				maxDepth: depth, maxBranch: branch)
+				maxDepth: depth, maxBranch: branch,
+				forbiddenEnabled: forbiddenEnabled)
 			if let m = move {
 				return ["move": [m.row, m.col]]
 			}

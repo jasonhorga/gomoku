@@ -44,10 +44,12 @@ public enum VctSearch {
 	}
 
 	private static func defenderHasFive(
-		board: [Int8], defender: Int8
+		board: [Int8], defender: Int8, forbiddenEnabled: Bool
 	) -> Bool {
 		for (r, c) in VcfSearch.candidateMoves(board: board, radius: 1) {
-			if board[GameLogic.idx(r, c)] == 0
+			if VcfSearch.isLegalMove(
+					board: board, row: r, col: c, player: defender,
+					forbiddenEnabled: forbiddenEnabled)
 					&& VcfSearch.makesFive(
 						board: board, row: r, col: c, player: defender) {
 				return true
@@ -56,28 +58,53 @@ public enum VctSearch {
 		return false
 	}
 
+	private static func legalOpenThrees(
+		board: [Int8],
+		threes: [(dir: (Int, Int), extensions: [(row: Int, col: Int)])],
+		attacker: Int8,
+		forbiddenEnabled: Bool
+	) -> [(dir: (Int, Int), extensions: [(row: Int, col: Int)])] {
+		if !forbiddenEnabled || attacker != Stone.black.rawValue {
+			return threes
+		}
+		return threes.compactMap { three in
+			let legalExtensions = three.extensions.filter {
+				VcfSearch.isLegalMove(
+					board: board, row: $0.row, col: $0.col, player: attacker,
+					forbiddenEnabled: forbiddenEnabled)
+			}
+			if legalExtensions.isEmpty { return nil }
+			return (three.dir, legalExtensions)
+		}
+	}
+
 	/// Search for a forced win using fours + threes. Tries VCF first at
 	/// every level. Returns (row, col) or nil; mutates+restores `board`.
 	public static func findVct(
 		board: inout [Int8], attacker: Int8,
-		maxDepth: Int = 6, maxBranch: Int = 6
+		maxDepth: Int = 6, maxBranch: Int = 6,
+		forbiddenEnabled: Bool = false
 	) -> (row: Int, col: Int)? {
 		if let win = VcfSearch.findVcf(
-				board: &board, attacker: attacker, maxDepth: maxDepth) {
+				board: &board, attacker: attacker, maxDepth: maxDepth,
+				forbiddenEnabled: forbiddenEnabled) {
 			return win
 		}
 		return vctRecurse(board: &board, attacker: attacker,
-		                  depth: maxDepth, maxBranch: maxBranch)
+		                  depth: maxDepth, maxBranch: maxBranch,
+		                  forbiddenEnabled: forbiddenEnabled)
 	}
 
 	private static func vctRecurse(
-		board: inout [Int8], attacker: Int8, depth: Int, maxBranch: Int
+		board: inout [Int8], attacker: Int8, depth: Int, maxBranch: Int,
+		forbiddenEnabled: Bool
 	) -> (row: Int, col: Int)? {
 		if depth <= 0 { return nil }
 		let defender: Int8 = attacker == 1 ? 2 : 1
 
 		if let win = VcfSearch.findVcf(
-				board: &board, attacker: attacker, maxDepth: depth) {
+				board: &board, attacker: attacker, maxDepth: depth,
+				forbiddenEnabled: forbiddenEnabled) {
 			return win
 		}
 
@@ -87,19 +114,29 @@ public enum VctSearch {
 		                   threes: [(dir: (Int, Int), extensions: [(row: Int, col: Int)])],
 		                   hasFour: Bool)] = []
 		for (r, c) in VcfSearch.candidateMoves(board: board, radius: 2) {
-			if board[GameLogic.idx(r, c)] != 0 { continue }
+			if !VcfSearch.isLegalMove(
+					board: board, row: r, col: c, player: attacker,
+					forbiddenEnabled: forbiddenEnabled) {
+				continue
+			}
 			board[GameLogic.idx(r, c)] = attacker
 			let threes = openThrees(
 				board: board, row: r, col: c, player: attacker)
+			let legalThrees = legalOpenThrees(
+				board: board, threes: threes, attacker: attacker,
+				forbiddenEnabled: forbiddenEnabled)
 			let fourInfo = VcfSearch.fourInfo(
 				board: board, row: r, col: c, player: attacker)
+			let legalFour = VcfSearch.legalFourThreat(
+				board: board, kind: fourInfo.kind, blocks: fourInfo.blockCells,
+				attacker: attacker, forbiddenEnabled: forbiddenEnabled)
 			board[GameLogic.idx(r, c)] = 0
 
-			if threes.isEmpty { continue }
+			if legalThrees.isEmpty { continue }
 
-			let hasFour = fourInfo.kind == .openFour || fourInfo.kind == .halfFour
-			let priority = threes.count * 10 + (hasFour ? 5 : 0)
-			threatMoves.append((priority, r, c, threes, hasFour))
+			let hasFour = legalFour != nil
+			let priority = legalThrees.count * 10 + (hasFour ? 5 : 0)
+			threatMoves.append((priority, r, c, legalThrees, hasFour))
 		}
 
 		threatMoves.sort { $0.priority > $1.priority }
@@ -110,7 +147,9 @@ public enum VctSearch {
 		for (_, r, c, threes, hasFour) in threatMoves {
 			board[GameLogic.idx(r, c)] = attacker
 
-			if defenderHasFive(board: board, defender: defender) {
+			if defenderHasFive(
+					board: board, defender: defender,
+					forbiddenEnabled: forbiddenEnabled) {
 				board[GameLogic.idx(r, c)] = 0
 				continue
 			}
@@ -128,7 +167,10 @@ public enum VctSearch {
 				for cell in exts {
 					if cell.row >= 0 && cell.row < GameLogic.boardSize
 							&& cell.col >= 0 && cell.col < GameLogic.boardSize
-							&& board[GameLogic.idx(cell.row, cell.col)] == 0 {
+							&& VcfSearch.isLegalMove(
+								board: board, row: cell.row, col: cell.col,
+								player: defender,
+								forbiddenEnabled: forbiddenEnabled) {
 						defenseCells.insert(cell.row * GameLogic.boardSize + cell.col)
 					}
 				}
@@ -145,7 +187,8 @@ public enum VctSearch {
 				let defC = packed % GameLogic.boardSize
 				board[GameLogic.idx(defR, defC)] = defender
 				let sub = vctRecurse(board: &board, attacker: attacker,
-				                     depth: depth - 1, maxBranch: maxBranch)
+				                     depth: depth - 1, maxBranch: maxBranch,
+				                     forbiddenEnabled: forbiddenEnabled)
 				board[GameLogic.idx(defR, defC)] = 0
 				if sub == nil {
 					allWin = false
