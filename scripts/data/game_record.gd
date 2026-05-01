@@ -4,6 +4,7 @@ var timestamp: String = ""
 var mode: String = ""  # "online", "local_pvp", "vs_ai", "ai_vs_ai"
 var black_type: String = ""  # "human", "ai_random", "ai_heuristic", etc.
 var white_type: String = ""
+var ruleset: String = "free"
 var moves: Array = []  # Array of [row, col]
 var result: int = 0  # 0=draw, 1=black, 2=white
 var total_moves: int = 0
@@ -15,6 +16,7 @@ func to_dict() -> Dictionary:
 		"mode": mode,
 		"black": black_type,
 		"white": white_type,
+		"ruleset": ruleset,
 		"moves": moves,
 		"result": result,
 		"total_moves": total_moves,
@@ -27,6 +29,7 @@ static func from_dict(d: Dictionary):  # returns GameRecord
 	record.mode = d.get("mode", "")
 	record.black_type = d.get("black", "")
 	record.white_type = d.get("white", "")
+	record.ruleset = d.get("ruleset", "free")
 	record.moves = d.get("moves", [])
 	record.result = d.get("result", 0)
 	record.total_moves = d.get("total_moves", 0)
