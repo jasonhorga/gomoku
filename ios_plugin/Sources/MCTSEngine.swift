@@ -125,6 +125,7 @@ public final class MCTSEngine {
 	public var vcfDepth: Int
 	public var vcfBranch: Int
 	public var cnnPriorWeight: Double
+	public var forbiddenEnabled: Bool
 
 	public init(
 		simulations: Int = 1000,
@@ -135,7 +136,8 @@ public final class MCTSEngine {
 		dirichletEps: Double = 0.25,
 		vcfDepth: Int = 10,
 		vcfBranch: Int = 8,
-		cnnPriorWeight: Double = 0.5
+		cnnPriorWeight: Double = 0.5,
+		forbiddenEnabled: Bool = false
 	) {
 		self.simulations = simulations
 		self.nnModel = nnModel
@@ -146,6 +148,7 @@ public final class MCTSEngine {
 		self.vcfDepth = vcfDepth
 		self.vcfBranch = vcfBranch
 		self.cnnPriorWeight = cnnPriorWeight
+		self.forbiddenEnabled = forbiddenEnabled
 	}
 
 	public func chooseMove(game: GameLogic) -> (row: Int, col: Int) {
@@ -166,9 +169,12 @@ public final class MCTSEngine {
 		// the "L5 一直往左上角下" bug the user hit. Pick the first
 		// candidate near an existing stone instead; it's at worst a
 		// local move, never (0,0) on a non-empty board.
-		let cands = game.nearbyMoves(radius: 2)
+		let cands = legalMoves(game: game, radius: 2, player: game.currentPlayer)
 		if let c = cands.first {
 			return (c.row, c.col)
+		}
+		if let c = firstLegalEmptyMove(game: game, player: game.currentPlayer) {
+			return c
 		}
 		return (7, 7)
 	}
@@ -178,9 +184,13 @@ public final class MCTSEngine {
 		// GameLogic.nearbyMoves returns [Move]; everything downstream
 		// treats moves as labelled tuples (row:col:) for easier pattern-
 		// matching with Python code.
+		game.forbiddenEnabled = forbiddenEnabled
 		var candidates: [(row: Int, col: Int)] =
-			game.nearbyMoves(radius: 2).map { (row: $0.row, col: $0.col) }
+			legalMoves(game: game, radius: 2, player: game.currentPlayer)
 		if candidates.isEmpty {
+			if let m = firstLegalEmptyMove(game: game, player: game.currentPlayer) {
+				return onehot(row: m.row, col: m.col)
+			}
 			return onehot(row: 7, col: 7)
 		}
 
@@ -189,6 +199,7 @@ public final class MCTSEngine {
 
 		// Immediate win / must-block
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: player) { continue }
 			game.setCell(m.row, m.col, player)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -197,6 +208,7 @@ public final class MCTSEngine {
 			game.setCell(m.row, m.col, 0)
 		}
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: player) { continue }
 			game.setCell(m.row, m.col, opponent)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -211,13 +223,17 @@ public final class MCTSEngine {
 			var board = game.board
 			if let m = VcfSearch.findVcf(
 					board: &board, attacker: player,
-					maxDepth: vcfDepth, maxBranch: vcfBranch) {
+					maxDepth: vcfDepth, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
+					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 			var oppBoard = game.board
 			if let m = VcfSearch.findVcf(
 					board: &oppBoard, attacker: opponent,
-					maxDepth: vcfDepth, maxBranch: vcfBranch) {
+					maxDepth: vcfDepth, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
+					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 		}
@@ -228,13 +244,17 @@ public final class MCTSEngine {
 			var board = game.board
 			if let m = VctSearch.findVct(
 					board: &board, attacker: player,
-					maxDepth: 6, maxBranch: vcfBranch) {
+					maxDepth: 6, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
+					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 			var oppBoard = game.board
 			if let m = VctSearch.findVct(
 					board: &oppBoard, attacker: opponent,
-					maxDepth: 6, maxBranch: vcfBranch) {
+					maxDepth: 6, maxBranch: vcfBranch,
+					forbiddenEnabled: forbiddenEnabled),
+					!game.isForbiddenMove(row: m.row, col: m.col, player: player) {
 				return onehot(row: m.row, col: m.col)
 			}
 		}
@@ -267,6 +287,7 @@ public final class MCTSEngine {
 
 		for _ in 0..<simulations {
 			let simGame = game.copy()
+			simGame.forbiddenEnabled = forbiddenEnabled
 			var node = root
 
 			// Selection
@@ -298,8 +319,8 @@ public final class MCTSEngine {
 					parent: node, move: move,
 					player: simGame.currentPlayer, prior: childPrior)
 				if !simGame.gameOver {
-					let childCands = simGame.nearbyMoves(radius: 1)
-						.map { (row: $0.row, col: $0.col) }
+					let childCands = legalMoves(
+						game: simGame, radius: 1, player: simGame.currentPlayer)
 					child.untriedMoves = Array(childCands.prefix(8))
 				}
 				node.children.append(child)
@@ -425,10 +446,12 @@ public final class MCTSEngine {
 
 		let player = game.currentPlayer
 		let opponent: Int8 = player == 1 ? 2 : 1
-		let candidates = game.nearbyMoves(radius: 1).map { (row: $0.row, col: $0.col) }
+		game.forbiddenEnabled = forbiddenEnabled
+		let candidates = legalMoves(game: game, radius: 1, player: player)
 		if candidates.isEmpty { return 0 }
 
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: player) { continue }
 			game.setCell(m.row, m.col, player)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -437,6 +460,7 @@ public final class MCTSEngine {
 			game.setCell(m.row, m.col, 0)
 		}
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: opponent) { continue }
 			game.setCell(m.row, m.col, opponent)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -474,10 +498,12 @@ public final class MCTSEngine {
 
 		let player = game.currentPlayer
 		let opponent: Int8 = player == 1 ? 2 : 1
-		let candidates = game.nearbyMoves(radius: 1).map { (row: $0.row, col: $0.col) }
+		game.forbiddenEnabled = forbiddenEnabled
+		let candidates = legalMoves(game: game, radius: 1, player: player)
 		if candidates.isEmpty { return 0.0 }
 
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: player) { continue }
 			game.setCell(m.row, m.col, player)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -486,6 +512,7 @@ public final class MCTSEngine {
 			game.setCell(m.row, m.col, 0)
 		}
 		for m in candidates {
+			if game.isForbiddenMove(row: m.row, col: m.col, player: opponent) { continue }
 			game.setCell(m.row, m.col, opponent)
 			if game.checkWin(at: m.row, col: m.col) {
 				game.setCell(m.row, m.col, 0)
@@ -510,6 +537,24 @@ public final class MCTSEngine {
 		let diff = myBest - oppBest
 		let advantage = tanh(diff / 1000.0) * 0.8
 		return player == perspective ? advantage : -advantage
+	}
+
+	private func legalMoves(game: GameLogic, radius: Int, player: Int8) -> [(row: Int, col: Int)] {
+		game.forbiddenEnabled = forbiddenEnabled
+		return game.legalNearbyMoves(radius: radius, player: player)
+			.map { (row: $0.row, col: $0.col) }
+	}
+
+	private func firstLegalEmptyMove(game: GameLogic, player: Int8) -> (row: Int, col: Int)? {
+		game.forbiddenEnabled = forbiddenEnabled
+		for r in 0..<GameLogic.boardSize {
+			for c in 0..<GameLogic.boardSize {
+				if game.cell(r, c) == 0 && !game.isForbiddenMove(row: r, col: c, player: player) {
+					return (r, c)
+				}
+			}
+		}
+		return nil
 	}
 
 	private func pickUntried(

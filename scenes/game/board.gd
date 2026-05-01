@@ -23,6 +23,7 @@ var hover_pos: Vector2i = Vector2i(-1, -1)
 func _ready() -> void:
 	GameManager.stone_placed.connect(_on_stone_placed)
 	GameManager.game_reset.connect(_on_game_reset)
+	GameManager.turn_changed.connect(_on_turn_changed)
 
 
 func _on_stone_placed(_row: int, _col: int, _color: int) -> void:
@@ -33,9 +34,14 @@ func _on_game_reset() -> void:
 	queue_redraw()
 
 
+func _on_turn_changed(_is_my_turn: bool) -> void:
+	queue_redraw()
+
+
 func _draw() -> void:
 	_draw_grid()
 	_draw_star_points()
+	_draw_forbidden_markers()
 	_draw_stones()
 	_draw_last_move_marker()
 	_draw_hover_preview()
@@ -62,6 +68,48 @@ func _draw_star_points() -> void:
 	for sp in STAR_POINTS:
 		var pos: Vector2 = grid_to_pixel(sp.x, sp.y)
 		draw_circle(pos, 4.0, GRID_COLOR)
+
+
+func _draw_forbidden_markers() -> void:
+	if not _should_show_forbidden_markers():
+		return
+	var board: Array = GameManager.logic.board
+	for row in range(BOARD_SIZE):
+		for col in range(BOARD_SIZE):
+			if board[row][col] != _GameLogic.EMPTY:
+				continue
+			if GameManager.logic.is_forbidden_move(row, col, _GameLogic.BLACK):
+				_draw_forbidden_marker(grid_to_pixel(row, col))
+
+
+func _should_show_forbidden_markers() -> bool:
+	if not GameManager.forbidden_enabled:
+		return false
+	if GameManager.logic.current_player != _GameLogic.BLACK:
+		return false
+	if GameManager.logic.game_over:
+		return false
+	if GameManager.mode == GameManager.GameMode.LOCAL_PVP:
+		return true
+	return GameManager.is_my_turn
+
+
+func _draw_forbidden_marker(pos: Vector2) -> void:
+	var marker_size: float = 7.0
+	var marker_color: Color = Color(0.9, 0.05, 0.05, 0.9)
+	var line_width: float = 2.0
+	draw_line(
+		pos + Vector2(-marker_size, -marker_size),
+		pos + Vector2(marker_size, marker_size),
+		marker_color,
+		line_width
+	)
+	draw_line(
+		pos + Vector2(marker_size, -marker_size),
+		pos + Vector2(-marker_size, marker_size),
+		marker_color,
+		line_width
+	)
 
 
 func _draw_stones() -> void:

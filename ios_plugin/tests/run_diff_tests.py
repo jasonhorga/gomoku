@@ -59,6 +59,58 @@ def call_swift(cli: str, payload: dict) -> dict:
     return json.loads(proc.stdout)
 
 
+def empty_board():
+    return [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+
+
+def test_renju_known_cases(cli: str, diff: 'Diff'):
+    # Exact five: legal for black even though it completes a five.
+    board = empty_board()
+    for c in range(4, 8):
+        board[7][c] = BLACK
+    sw = call_swift(cli, {
+        "op": "is_forbidden_black", "board": board, "row": 7, "col": 8,
+    })
+    diff.expect("renju.exact_five_legal", False, bool(sw.get("forbidden", True)))
+
+    # Overline: six in a row is forbidden for black.
+    board = empty_board()
+    for c in range(3, 8):
+        board[7][c] = BLACK
+    sw = call_swift(cli, {
+        "op": "is_forbidden_black", "board": board, "row": 7, "col": 8,
+    })
+    diff.expect("renju.overline_forbidden", True, bool(sw.get("forbidden", False)))
+
+    # Double-three: horizontal and vertical open-threes from the same move.
+    board = empty_board()
+    board[7][6] = BLACK
+    board[7][8] = BLACK
+    board[6][7] = BLACK
+    board[8][7] = BLACK
+    sw = call_swift(cli, {
+        "op": "is_forbidden_black", "board": board, "row": 7, "col": 7,
+    })
+    diff.expect("renju.double_three_forbidden", True, bool(sw.get("forbidden", False)))
+
+    # VCF/VCT must not treat forbidden black overlines as forced wins when
+    # Renju filtering is enabled. Free-Gomoku behavior should remain unchanged.
+    board = empty_board()
+    for c in range(3, 8):
+        board[7][c] = BLACK
+    for op in ("find_vcf", "find_vct"):
+        sw_free = call_swift(cli, {
+            "op": op, "board": board, "attacker": BLACK,
+            "max_depth": 4, "max_branch": 6, "forbidden_enabled": False,
+        })
+        diff.expect(f"renju.{op}.free_overline_available", [7, 2], sw_free.get("move"))
+        sw_renju = call_swift(cli, {
+            "op": op, "board": board, "attacker": BLACK,
+            "max_depth": 4, "max_branch": 6, "forbidden_enabled": True,
+        })
+        diff.expect(f"renju.{op}.forbidden_overline_suppressed", None, sw_renju.get("move"))
+
+
 class Diff:
     def __init__(self):
         self.checks = 0
@@ -501,6 +553,7 @@ def main():
 
     rng = random.Random(args.seed)
     diff = Diff()
+    test_renju_known_cases(args.cli, diff)
     for i in range(args.cases):
         test_case(rng, args.cli, diff)
         if (i + 1) % 10 == 0:

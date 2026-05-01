@@ -73,6 +73,13 @@ struct DiffTestCLI {
 			let moves = game.validMoves()
 			return ["moves": moves.map { [$0.row, $0.col] }]
 
+		case "is_forbidden_black":
+			guard let row = req["row"] as? Int, let col = req["col"] as? Int else {
+				return ["error": "is_forbidden_black needs row + col"]
+			}
+			var board = game.board
+			return ["forbidden": RenjuForbidden.isForbiddenBlack(board: &board, row: row, col: col)]
+
 		case "place_stone":
 			guard let row = req["row"] as? Int, let col = req["col"] as? Int else {
 				return ["error": "place_stone needs row + col"]
@@ -199,10 +206,12 @@ struct DiffTestCLI {
 			}
 			let depth = req["max_depth"] as? Int ?? 6
 			let branch = req["max_branch"] as? Int ?? 8
+			let forbiddenEnabled = req["forbidden_enabled"] as? Bool ?? false
 			var board = game.board
 			let move = VcfSearch.findVcf(
 				board: &board, attacker: Int8(attacker),
-				maxDepth: depth, maxBranch: branch)
+				maxDepth: depth, maxBranch: branch,
+				forbiddenEnabled: forbiddenEnabled)
 			if let m = move {
 				return ["move": [m.row, m.col]]
 			}
@@ -240,10 +249,12 @@ struct DiffTestCLI {
 			}
 			let depth = req["max_depth"] as? Int ?? 4
 			let branch = req["max_branch"] as? Int ?? 6
+			let forbiddenEnabled = req["forbidden_enabled"] as? Bool ?? false
 			var board = game.board
 			let move = VctSearch.findVct(
 				board: &board, attacker: Int8(attacker),
-				maxDepth: depth, maxBranch: branch)
+				maxDepth: depth, maxBranch: branch,
+				forbiddenEnabled: forbiddenEnabled)
 			if let m = move {
 				return ["move": [m.row, m.col]]
 			}

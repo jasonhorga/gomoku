@@ -46,26 +46,27 @@ func _compute_move(board: Array, current_player: int, move_history: Array) -> vo
 	else:
 		Log.error("LocalAI", "ai_engine invalid (null or no choose_move), picking fallback")
 
-	# Validate: cell in-bounds AND unoccupied. An engine that returns
-	# (0,0) on a non-empty board triggered the "AI stuck" retry loop
-	# until we gave up — now we just pick a legal cell ourselves.
-	if move.x < 0 or move.y < 0 or move.x >= 15 or move.y >= 15 \
-			or board[move.x][move.y] != 0:
+	# Validate: cell in-bounds, unoccupied, and legal for the active rule set.
+	# An engine that returns (0,0) on a non-empty board triggered the "AI
+	# stuck" retry loop until we gave up — now we just pick a legal cell
+	# ourselves. In Renju mode, black forbidden points are not acceptable
+	# guardrail/fallback moves; GameLogic would convert them into a loss.
+	if not _is_legal_fallback_cell(board, move.x, move.y, current_player):
 		Log.warn("LocalAI", "engine returned invalid %s; scanning for legal fallback" % move)
-		move = _scan_legal_fallback(board)
+		move = _scan_legal_fallback(board, current_player)
 
 	if not _cancelled:
 		_emit_move.call_deferred(move.x, move.y)
 
 
-func _scan_legal_fallback(board: Array) -> Vector2i:
+func _scan_legal_fallback(board: Array, current_player: int = 0) -> Vector2i:
 	# Prefer cells near an existing stone (center-ish play) over raw
 	# row-major first-empty — the latter causes the "upper-left march"
 	# symptom the user has seen twice.
 	for radius in [1, 2, 3]:
 		for r in range(15):
 			for c in range(15):
-				if board[r][c] != 0:
+				if not _is_legal_fallback_cell(board, r, c, current_player):
 					continue
 				# check any stone within `radius`
 				for dr in range(-radius, radius + 1):
@@ -76,8 +77,20 @@ func _scan_legal_fallback(board: Array) -> Vector2i:
 							continue
 						if board[rr][cc] != 0:
 							return Vector2i(r, c)
-	# Truly empty board → center.
-	return Vector2i(7, 7)
+	# Truly empty board → center if legal for this rule set.
+	if _is_legal_fallback_cell(board, 7, 7, current_player):
+		return Vector2i(7, 7)
+	return Vector2i(-1, -1)
+
+
+func _is_legal_fallback_cell(board: Array, row: int, col: int, current_player: int) -> bool:
+	if row < 0 or col < 0 or row >= 15 or col >= 15:
+		return false
+	if board[row][col] != 0:
+		return false
+	if GameManager.forbidden_enabled and current_player == 1 and GameManager.logic != null:
+		return not GameManager.logic.forbidden_checker.is_forbidden_black(board, row, col)
+	return true
 
 
 func _emit_move(row: int, col: int) -> void:

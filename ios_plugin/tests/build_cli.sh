@@ -12,6 +12,7 @@ xcrun swiftc \
 	-O \
 	-parse-as-library \
 	-o "$OUT" \
+	../Sources/RenjuForbidden.swift \
 	../Sources/GameLogic.swift \
 	../Sources/PatternEval.swift \
 	../Sources/VcfSearch.swift \

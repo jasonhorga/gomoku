@@ -48,6 +48,13 @@ public final class GameLogic {
 	public var moveHistory: [Move]
 	public var gameOver: Bool
 	public var winner: Int8
+	public var forbiddenEnabled: Bool
+	public var gameEndReason: String
+
+	public static let endReasonNone = "none"
+	public static let endReasonFive = "five"
+	public static let endReasonForbidden = "forbidden"
+	public static let endReasonDraw = "draw"
 
 	public init() {
 		board = Array(repeating: 0, count: Self.boardSize * Self.boardSize)
@@ -55,6 +62,8 @@ public final class GameLogic {
 		moveHistory = []
 		gameOver = false
 		winner = Stone.empty.rawValue
+		forbiddenEnabled = false
+		gameEndReason = Self.endReasonNone
 	}
 
 	public func reset() {
@@ -65,6 +74,7 @@ public final class GameLogic {
 		moveHistory.removeAll()
 		gameOver = false
 		winner = Stone.empty.rawValue
+		gameEndReason = Self.endReasonNone
 	}
 
 	@inlinable
@@ -86,15 +96,30 @@ public final class GameLogic {
 		let i = Self.idx(row, col)
 		if board[i] != 0 { return false }
 
+		if forbiddenEnabled && currentPlayer == Stone.black.rawValue {
+			var tmpBoard = board
+			if RenjuForbidden.isForbiddenBlack(board: &tmpBoard, row: row, col: col) {
+				board[i] = currentPlayer
+				moveHistory.append(Move(row, col))
+				gameOver = true
+				winner = Stone.white.rawValue
+				gameEndReason = Self.endReasonForbidden
+				currentPlayer = Stone.white.rawValue
+				return true
+			}
+		}
+
 		board[i] = currentPlayer
 		moveHistory.append(Move(row, col))
 
 		if checkWin(at: row, col: col) {
 			gameOver = true
 			winner = currentPlayer
+			gameEndReason = Self.endReasonFive
 		} else if moveHistory.count >= Self.boardSize * Self.boardSize {
 			gameOver = true
 			winner = Stone.empty.rawValue
+			gameEndReason = Self.endReasonDraw
 		}
 
 		currentPlayer = (currentPlayer == Stone.black.rawValue)
@@ -110,7 +135,11 @@ public final class GameLogic {
 			var count = 1
 			count += countInDirection(row: row, col: col, dRow: dr, dCol: dc, player: player)
 			count += countInDirection(row: row, col: col, dRow: -dr, dCol: -dc, player: player)
-			if count >= 5 { return true }
+			if forbiddenEnabled && player == Stone.black.rawValue {
+				if count == 5 { return true }
+			} else if count >= 5 {
+				return true
+			}
 		}
 		return false
 	}
@@ -136,6 +165,8 @@ public final class GameLogic {
 		g.moveHistory = moveHistory
 		g.gameOver = gameOver
 		g.winner = winner
+		g.forbiddenEnabled = forbiddenEnabled
+		g.gameEndReason = gameEndReason
 		return g
 	}
 
@@ -149,6 +180,18 @@ public final class GameLogic {
 			}
 		}
 		return moves
+	}
+
+	public func isForbiddenMove(row: Int, col: Int, player: Int8) -> Bool {
+		if !forbiddenEnabled || player != Stone.black.rawValue { return false }
+		var tmpBoard = board
+		return RenjuForbidden.isForbiddenBlack(board: &tmpBoard, row: row, col: col)
+	}
+
+	public func legalNearbyMoves(radius: Int = 2, player: Int8) -> [Move] {
+		return nearbyMoves(radius: radius).filter {
+			!isForbiddenMove(row: $0.row, col: $0.col, player: player)
+		}
 	}
 
 	/// Empty cells within `radius` of any placed stone. If the board is

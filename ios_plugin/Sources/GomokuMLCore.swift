@@ -35,9 +35,12 @@ import CoreGraphics
 
 	/// Pick a move. `board` is a 15×15 NSNumber array (0=empty, 1=BLACK,
 	/// 2=WHITE). `player` is 1 or 2. Returns (row, col) as CGPoint.
-	@objc public func chooseMove(level: Int, board: [[NSNumber]], player: Int) -> CGPoint {
+	@objc public func chooseMove(
+		level: Int, board: [[NSNumber]], player: Int, forbiddenEnabled: Bool
+	) -> CGPoint {
 		let game = GameLogic()
 		game.currentPlayer = Int8(player)
+		game.forbiddenEnabled = forbiddenEnabled
 
 		let size = GameLogic.boardSize
 		for r in 0..<min(size, board.count) {
@@ -45,10 +48,6 @@ import CoreGraphics
 			for c in 0..<min(size, row.count) {
 				game.setCell(r, c, Int8(truncatingIfNeeded: row[c].intValue))
 			}
-		}
-
-		if game.nearbyMoves(radius: 2).isEmpty {
-			return CGPoint(x: 7, y: 7)
 		}
 
 		let engine: MCTSEngine
@@ -68,7 +67,8 @@ import CoreGraphics
 				dirichletAlpha: 0.0,
 				vcfDepth: 10,
 				vcfBranch: 8,
-				cnnPriorWeight: 0.5
+				cnnPriorWeight: 0.5,
+				forbiddenEnabled: forbiddenEnabled
 			)
 		case 5:
 			// Pattern-only MCTS, 1500 sims. No CNN dependency.
@@ -79,7 +79,8 @@ import CoreGraphics
 				usePatternPrior: true,
 				dirichletAlpha: 0.0,
 				vcfDepth: 10,
-				vcfBranch: 8
+				vcfBranch: 8,
+				forbiddenEnabled: forbiddenEnabled
 			)
 		default:
 			// Defensive fallback for unexpected levels.
@@ -89,7 +90,8 @@ import CoreGraphics
 				cPuct: 1.4,
 				usePatternPrior: true,
 				vcfDepth: 10,
-				vcfBranch: 8
+				vcfBranch: 8,
+				forbiddenEnabled: forbiddenEnabled
 			)
 		}
 

@@ -88,6 +88,7 @@ build_ios_slice() {
 		-O \
 		-o "$slice/libGomokuMLCore.a" \
 		Sources/GomokuMLCore.swift \
+		Sources/RenjuForbidden.swift \
 		Sources/GameLogic.swift \
 		Sources/PatternEval.swift \
 		Sources/VcfSearch.swift \
@@ -191,6 +192,7 @@ build_macos() {
 		-O \
 		-o "$slice/libGomokuMLCore.a" \
 		Sources/GomokuMLCore.swift \
+		Sources/RenjuForbidden.swift \
 		Sources/GameLogic.swift \
 		Sources/PatternEval.swift \
 		Sources/VcfSearch.swift \
