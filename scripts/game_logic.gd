@@ -109,29 +109,23 @@ func get_last_move() -> Vector2i:
 
 
 func rebuild_from_history(history: Array[Vector2i]) -> bool:
-	var previous_board: Array = []
-	for row in board:
-		previous_board.append(row.duplicate())
-	var previous_current_player: int = current_player
-	var previous_history: Array[Vector2i] = move_history.duplicate()
-	var previous_game_over: bool = game_over
-	var previous_winner: int = winner
-	var previous_forbidden_enabled: bool = forbidden_enabled
-	var previous_game_end_reason: String = game_end_reason
-
-	reset()
-	forbidden_enabled = previous_forbidden_enabled
+	var replay = GameLogic.new()
+	replay.forbidden_enabled = forbidden_enabled
 	for move in history:
-		if not place_stone(move.x, move.y):
+		if not replay.place_stone(move.x, move.y):
 			push_error("Invalid move while rebuilding history: %s" % move)
-			board = previous_board
-			current_player = previous_current_player
-			move_history = previous_history
-			game_over = previous_game_over
-			winner = previous_winner
-			forbidden_enabled = previous_forbidden_enabled
-			game_end_reason = previous_game_end_reason
 			return false
+
+	var replay_board: Array = []
+	for row in replay.board:
+		replay_board.append(row.duplicate())
+	board = replay_board
+	current_player = replay.current_player
+	move_history = replay.move_history.duplicate()
+	game_over = replay.game_over
+	winner = replay.winner
+	forbidden_enabled = replay.forbidden_enabled
+	game_end_reason = replay.game_end_reason
 	return true
 
 
