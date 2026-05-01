@@ -290,7 +290,7 @@ func _on_move_decided(row: int, col: int) -> void:
 				game_ended.emit(0)
 			return
 		_mark_ai_watch_paused_retry(color)
-		_request_current_move()
+		_request_invalid_move_retry.call_deferred(color, _move_request_epoch)
 		return
 	_invalid_retries = 0
 	_clear_ai_watch_paused_retry()
@@ -468,6 +468,12 @@ func request_ai_watch_step() -> void:
 
 func _request_current_move_if_ai_watch_waiting() -> void:
 	if mode != GameMode.AI_VS_AI or logic.game_over or ai_move_in_progress:
+		return
+	_request_current_move()
+
+
+func _request_invalid_move_retry(color: int, request_epoch: int) -> void:
+	if _move_requests_paused or request_epoch != _move_request_epoch or logic.game_over or logic.current_player != color:
 		return
 	_request_current_move()
 
