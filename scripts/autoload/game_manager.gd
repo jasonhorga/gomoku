@@ -21,6 +21,7 @@ signal game_ended(winner: int)
 signal invalid_human_move(message: String)
 signal opponent_reset_requested()
 signal game_reset()
+signal history_changed()
 
 
 func _ready() -> void:
@@ -307,6 +308,41 @@ func accept_reset() -> void:
 		NetworkManager.send_reset_accept()
 	_cancel_current_move()
 	start_game()
+
+
+func undo_last_turn() -> bool:
+	if logic.game_over or mode == GameMode.ONLINE or mode == GameMode.AI_VS_AI:
+		return false
+	if logic.move_history.is_empty():
+		return false
+
+	var was_paused: bool = _move_requests_paused
+	_cancel_current_move()
+	_invalid_retries = 0
+
+	var undo_count: int = 1
+	if mode == GameMode.VS_AI and logic.move_history.size() > 1:
+		undo_count = 2
+
+	if not logic.undo_moves(undo_count):
+		if not was_paused:
+			_move_requests_paused = false
+		return false
+
+	logic.forbidden_enabled = forbidden_enabled
+	_apply_ai_ruleset()
+	history_changed.emit()
+	game_reset.emit()
+	for move in logic.move_history:
+		stone_placed.emit(move.x, move.y, logic.board[move.x][move.y])
+	_update_turn_state()
+
+	if was_paused:
+		_move_requests_paused = true
+	else:
+		_move_requests_paused = false
+		_request_current_move()
+	return true
 
 
 func _on_reset_requested() -> void:

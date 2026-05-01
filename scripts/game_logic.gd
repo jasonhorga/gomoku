@@ -108,6 +108,30 @@ func get_last_move() -> Vector2i:
 	return move_history.back()
 
 
+func rebuild_from_history(history: Array[Vector2i]) -> void:
+	var keep_forbidden: bool = forbidden_enabled
+	reset()
+	forbidden_enabled = keep_forbidden
+	for move in history:
+		if not place_stone(move.x, move.y):
+			push_error("Invalid move while rebuilding history: %s" % move)
+			break
+	game_over = false
+	winner = EMPTY
+	game_end_reason = END_REASON_NONE
+
+
+func undo_moves(count: int) -> bool:
+	if count <= 0 or move_history.is_empty():
+		return false
+	var remaining: Array[Vector2i] = move_history.duplicate()
+	var remove_count: int = min(count, remaining.size())
+	for _i in range(remove_count):
+		remaining.pop_back()
+	rebuild_from_history(remaining)
+	return true
+
+
 func is_forbidden_move(row: int, col: int, player: int) -> bool:
 	return forbidden_enabled and player == BLACK and forbidden_checker.is_forbidden_black(board, row, col)
 
