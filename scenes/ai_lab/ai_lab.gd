@@ -20,6 +20,7 @@ var batch_total: int = 0
 var batch_done: int = 0
 var batch_wins_b: int = 0
 var batch_wins_w: int = 0
+var batch_use_renju_rules: bool = false
 var last_batch_record_path: String = ""
 
 
@@ -74,9 +75,11 @@ func _on_run_batch_pressed() -> void:
 	batch_done = 0
 	batch_wins_b = 0
 	batch_wins_w = 0
+	batch_use_renju_rules = renju_checkbox.button_pressed
 	last_batch_record_path = ""
 	replay_last_batch_button.disabled = true
 	%RunBatchButton.disabled = true
+	renju_checkbox.disabled = true
 	stats_label.text = "批量进度：0/%d..." % batch_total
 	_run_next_batch_game()
 
@@ -85,6 +88,9 @@ func _run_next_batch_game() -> void:
 	if batch_done >= batch_total:
 		batch_running = false
 		%RunBatchButton.disabled = false
+		renju_checkbox.disabled = false
+		if not last_batch_record_path.is_empty():
+			replay_last_batch_button.disabled = false
 		stats_label.text = "完成：黑=%d 白=%d 平=%d | 总记录：%d" % [
 			batch_wins_b, batch_wins_w, batch_total - batch_wins_b - batch_wins_w,
 			_GameRecord.list_records().size()]
@@ -105,7 +111,7 @@ func _run_next_batch_game() -> void:
 		engine_w = _create_engine(white_level.selected)
 
 	# Run a headless game using game logic directly
-	var use_renju_rules: bool = renju_checkbox.button_pressed
+	var use_renju_rules: bool = batch_use_renju_rules
 	var logic = _GameLogic.new()
 	logic.forbidden_enabled = use_renju_rules
 	if "forbidden_enabled" in engine_b:
@@ -148,9 +154,8 @@ func _run_next_batch_game() -> void:
 	for m in logic.move_history:
 		record.moves.append([m.x, m.y])
 	var path = _GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
-	_GameRecord.save_to_file(record, path)
-	last_batch_record_path = path
-	replay_last_batch_button.disabled = false
+	if _GameRecord.save_to_file(record, path):
+		last_batch_record_path = path
 
 	# Attribute the win to the SELECTED dropdown level, not the board
 	# colour, so the tally is meaningful when colors alternate each game.

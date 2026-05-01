@@ -358,6 +358,7 @@ func _save_game_record() -> void:
 		GameMode.AI_VS_AI: record.mode = "ai_vs_ai"
 	record.black_type = _get_player_type_string(0)
 	record.white_type = _get_player_type_string(1)
+	record.ruleset = "renju" if forbidden_enabled else "free"
 	record.result = logic.winner
 	record.total_moves = logic.move_history.size()
 	for m in logic.move_history:
