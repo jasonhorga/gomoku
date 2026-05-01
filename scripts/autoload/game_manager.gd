@@ -11,6 +11,9 @@ var players: Array = [null, null]  # [0]=BLACK controller, [1]=WHITE controller
 var my_color: int = -1
 var is_my_turn: bool = false
 var ai_move_delay: float = 0.5
+var ai_watch_paused: bool = false
+var ai_step_requested: bool = false
+var ai_move_in_progress: bool = false
 var forbidden_enabled: bool = false
 var last_game_record = null
 var replay_record = null
@@ -25,6 +28,7 @@ signal invalid_human_move(message: String)
 signal opponent_reset_requested()
 signal game_reset()
 signal history_changed()
+signal ai_watch_state_changed()
 
 
 func _ready() -> void:
@@ -136,6 +140,9 @@ func setup_vs_ai(human_color: int, ai_engine, p_forbidden_enabled: bool = false)
 func setup_ai_vs_ai(engine_black, engine_white, p_forbidden_enabled: bool = false) -> void:
 	mode = GameMode.AI_VS_AI
 	my_color = -1
+	ai_watch_paused = false
+	ai_step_requested = false
+	ai_move_in_progress = false
 	forbidden_enabled = p_forbidden_enabled
 	logic.forbidden_enabled = forbidden_enabled
 	Log.info("Engine", "setup_ai_vs_ai black=%s white=%s" % [
@@ -166,6 +173,10 @@ func start_game() -> void:
 	last_game_record = null
 	_move_requests_paused = false
 	_move_request_epoch += 1
+	ai_step_requested = false
+	ai_move_in_progress = false
+	if mode == GameMode.AI_VS_AI:
+		ai_watch_state_changed.emit()
 	logic.reset()
 	logic.forbidden_enabled = forbidden_enabled
 	_apply_ai_ruleset()
@@ -196,8 +207,20 @@ func submit_human_move(row: int, col: int) -> void:
 
 func _request_current_move() -> void:
 	if _move_requests_paused:
+		_clear_ai_watch_move_in_progress()
+		return
+	if mode == GameMode.AI_VS_AI and ai_watch_paused and not ai_step_requested:
+		_clear_ai_watch_move_in_progress()
+		ai_watch_state_changed.emit()
 		return
 	var ctrl = _current_controller()
+	if ctrl == null:
+		_clear_ai_watch_move_in_progress()
+		return
+	if mode == GameMode.AI_VS_AI:
+		ai_move_in_progress = true
+		ai_step_requested = false
+		ai_watch_state_changed.emit()
 	# Bracket each request with a "thinking" log so we can see how long
 	# a GDScript AI (L1-L4) spends choosing a move — previously their
 	# turns were invisible between request and _on_move_decided.
@@ -216,6 +239,7 @@ var _invalid_retries: int = 0
 
 func _on_move_decided(row: int, col: int) -> void:
 	if _move_requests_paused:
+		_clear_ai_watch_move_in_progress()
 		return
 	var color: int = logic.current_player
 	# One line per move regardless of source (human, GDScript L1-L4, or
@@ -252,12 +276,16 @@ func _on_move_decided(row: int, col: int) -> void:
 			else:
 				Log.error("Move", "no legal move, ending game")
 				logic.game_over = true
+				_clear_ai_watch_move_in_progress()
 				game_ended.emit(0)
 			return
+		_clear_ai_watch_move_in_progress()
 		_request_current_move()
 		return
 	_invalid_retries = 0
 
+	if mode == GameMode.AI_VS_AI:
+		_clear_ai_watch_move_in_progress()
 	stone_placed.emit(row, col, color)
 
 	# If online, send move to remote peer
@@ -399,10 +427,53 @@ func _first_empty_cell() -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+func set_ai_watch_paused(paused: bool) -> void:
+	if mode != GameMode.AI_VS_AI:
+		return
+	if ai_watch_paused == paused:
+		ai_watch_state_changed.emit()
+		if not paused:
+			_move_request_epoch += 1
+			_request_current_move_if_ai_watch_waiting()
+		return
+	ai_watch_paused = paused
+	ai_step_requested = false
+	_move_request_epoch += 1
+	ai_watch_state_changed.emit()
+	if not ai_watch_paused:
+		_request_current_move_if_ai_watch_waiting()
+
+
+func request_ai_watch_step() -> void:
+	if mode != GameMode.AI_VS_AI or logic.game_over or ai_move_in_progress:
+		ai_watch_state_changed.emit()
+		return
+	ai_watch_paused = true
+	ai_step_requested = true
+	_move_request_epoch += 1
+	ai_watch_state_changed.emit()
+	_request_current_move_if_ai_watch_waiting()
+
+
+func _request_current_move_if_ai_watch_waiting() -> void:
+	if mode != GameMode.AI_VS_AI or logic.game_over or ai_move_in_progress:
+		return
+	_request_current_move()
+
+
+func _clear_ai_watch_move_in_progress() -> void:
+	if mode != GameMode.AI_VS_AI:
+		return
+	if ai_move_in_progress:
+		ai_move_in_progress = false
+		ai_watch_state_changed.emit()
+
+
 func pause_current_move() -> void:
 	_move_requests_paused = true
 	_move_request_epoch += 1
 	_cancel_current_move()
+	_clear_ai_watch_move_in_progress()
 
 
 func resume_current_move() -> void:
@@ -420,6 +491,7 @@ func _cancel_current_move() -> void:
 			if p.move_decided.is_connected(_on_move_decided):
 				p.move_decided.disconnect(_on_move_decided)
 			p.cancel()
+	_clear_ai_watch_move_in_progress()
 
 
 func _has_current_move_request() -> bool:

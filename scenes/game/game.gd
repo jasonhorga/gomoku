@@ -20,6 +20,10 @@ const _PlayerController = preload("res://scripts/player/player_controller.gd")
 @onready var move_label: Label = %MoveLabel
 @onready var message_label: Label = %MessageLabel
 @onready var undo_button: Button = %UndoButton
+@onready var ai_watch_controls: HBoxContainer = %AiWatchControls
+@onready var pause_button: Button = %PauseButton
+@onready var step_button: Button = %StepButton
+@onready var auto_button: Button = %AutoButton
 @onready var new_game_button: Button = %NewGameButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
 @onready var resign_button: Button = %ResignButton
@@ -44,8 +48,12 @@ func _ready() -> void:
 	GameManager.opponent_reset_requested.connect(_on_opponent_reset_requested)
 	GameManager.game_reset.connect(_on_game_reset)
 	GameManager.history_changed.connect(_on_history_changed)
+	GameManager.ai_watch_state_changed.connect(_update_ai_watch_controls)
 
 	undo_button.pressed.connect(_on_undo_pressed)
+	pause_button.pressed.connect(_on_pause_pressed)
+	step_button.pressed.connect(_on_step_pressed)
+	auto_button.pressed.connect(_on_auto_pressed)
 	new_game_button.pressed.connect(_confirm_new_game)
 	back_to_menu_button.pressed.connect(_confirm_main_menu)
 	resign_button.pressed.connect(_on_resign_pressed)
@@ -75,6 +83,7 @@ func _exit_tree() -> void:
 	_disconnect_if_connected(GameManager.opponent_reset_requested, _on_opponent_reset_requested)
 	_disconnect_if_connected(GameManager.game_reset, _on_game_reset)
 	_disconnect_if_connected(GameManager.history_changed, _on_history_changed)
+	_disconnect_if_connected(GameManager.ai_watch_state_changed, _update_ai_watch_controls)
 	_disconnect_if_connected(NetworkManager.player_disconnected, _on_player_disconnected)
 	if is_inside_tree():
 		_disconnect_if_connected(get_viewport().size_changed, _apply_responsive_layout)
@@ -88,6 +97,7 @@ func _disconnect_if_connected(sig: Signal, callable: Callable) -> void:
 func _configure_for_mode() -> void:
 	undo_button.visible = GameManager.mode == GameManager.GameMode.LOCAL_PVP or GameManager.mode == GameManager.GameMode.VS_AI
 	_update_undo_enabled()
+	_update_ai_watch_controls()
 	new_game_button.visible = GameManager.mode != GameManager.GameMode.ONLINE
 	back_to_menu_button.visible = GameManager.mode != GameManager.GameMode.ONLINE
 	resign_button.visible = GameManager.mode == GameManager.GameMode.ONLINE
@@ -180,6 +190,7 @@ func _friendly_engine_name(player_idx: int) -> String:
 
 func _on_turn_changed(_is_my_turn: bool) -> void:
 	_update_undo_enabled()
+	_update_ai_watch_controls()
 	match GameManager.mode:
 		GameManager.GameMode.LOCAL_PVP:
 			if GameManager.logic.current_player == _GameLogic.BLACK:
@@ -213,6 +224,7 @@ func _on_stone_placed(_row: int, _col: int, _color: int) -> void:
 	move_label.text = "步数：%d" % GameManager.logic.move_history.size()
 	message_label.text = ""
 	_update_undo_enabled()
+	_update_ai_watch_controls()
 
 
 func _on_history_changed() -> void:
@@ -225,6 +237,32 @@ func _on_history_changed() -> void:
 
 func _update_undo_enabled() -> void:
 	undo_button.disabled = not GameManager.can_undo_last_turn()
+
+
+func _update_ai_watch_controls() -> void:
+	var is_ai_watch: bool = GameManager.mode == GameManager.GameMode.AI_VS_AI
+	ai_watch_controls.visible = is_ai_watch
+	if not is_ai_watch:
+		return
+	var game_over: bool = GameManager.logic.game_over
+	pause_button.disabled = game_over or GameManager.ai_watch_paused
+	step_button.disabled = game_over or GameManager.ai_move_in_progress
+	auto_button.disabled = game_over or (not GameManager.ai_watch_paused and not GameManager.ai_move_in_progress)
+
+
+func _on_pause_pressed() -> void:
+	GameManager.set_ai_watch_paused(true)
+	_update_ai_watch_controls()
+
+
+func _on_step_pressed() -> void:
+	GameManager.request_ai_watch_step()
+	_update_ai_watch_controls()
+
+
+func _on_auto_pressed() -> void:
+	GameManager.set_ai_watch_paused(false)
+	_update_ai_watch_controls()
 
 
 func _on_invalid_human_move(message: String) -> void:
@@ -243,6 +281,7 @@ func _show_message(message: String) -> void:
 
 func _on_game_ended(winner: int) -> void:
 	_update_undo_enabled()
+	_update_ai_watch_controls()
 	game_over_panel.visible = true
 	replay_button.visible = GameManager.last_game_record != null
 	replay_button.disabled = GameManager.last_game_record == null
@@ -281,6 +320,7 @@ func _on_game_reset() -> void:
 	move_label.text = "步数：0"
 	message_label.text = ""
 	_update_undo_enabled()
+	_update_ai_watch_controls()
 
 
 func _on_undo_pressed() -> void:
