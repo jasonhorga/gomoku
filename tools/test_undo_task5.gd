@@ -47,9 +47,12 @@ func _ready() -> void:
 		get_tree().quit(1)
 
 func _run_tests() -> void:
-	_test_transactional_rebuild_preserves_state_on_invalid_history()
-	_test_vs_ai_undo_while_ai_thinking_removes_pending_human_move()
+	_test_local_pvp_undo_free()
+	_test_local_pvp_undo_renju()
 	_test_vs_ai_undo_after_ai_responded_removes_pair()
+	_test_vs_ai_undo_while_ai_thinking_removes_pending_human_move()
+	_test_human_white_opening_undo_disabled()
+	_test_invalid_history_replay_does_not_mutate_state()
 
 func _assert_true(condition: bool, message: String) -> void:
 	if not condition:
@@ -77,6 +80,31 @@ func _move_list(history: Array[Vector2i]) -> Array[String]:
 	for move in history:
 		out.append("%d,%d" % [move.x, move.y])
 	return out
+
+func _test_local_pvp_undo_free() -> void:
+	var gm = _new_manager()
+	gm.setup_local_pvp(false)
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	gm.submit_human_move(7, 8)
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(ok, "local PvP free undo should succeed")
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "local PvP free should remove one move")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "local PvP free should leave white to move")
+	_assert_eq(gm.logic.board[7][8], GameLogic.EMPTY, "local PvP free should clear undone stone")
+	_assert_eq(gm.logic.board[7][7], GameLogic.BLACK, "local PvP free should keep earlier stone")
+
+func _test_local_pvp_undo_renju() -> void:
+	var gm = _new_manager()
+	gm.setup_local_pvp(true)
+	gm.start_game()
+	gm.submit_human_move(7, 7)
+	gm.submit_human_move(7, 8)
+	var ok: bool = gm.undo_last_turn()
+	_assert_true(ok, "local PvP Renju undo should succeed")
+	_assert_true(gm.logic.forbidden_enabled, "local PvP Renju should preserve forbidden flag")
+	_assert_eq(_move_list(gm.logic.move_history), ["7,7"], "local PvP Renju should remove one move")
+	_assert_eq(gm.logic.current_player, GameLogic.WHITE, "local PvP Renju should leave white to move")
 
 func _test_vs_ai_undo_after_ai_responded_removes_pair() -> void:
 	var gm = _new_manager()
