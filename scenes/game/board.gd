@@ -24,6 +24,9 @@ const STAR_POINTS: Array[Vector2i] = [
 	Vector2i(11, 3), Vector2i(11, 11),
 ]
 
+var display_board: Array = []
+var display_last_move: Vector2i = Vector2i(-1, -1)
+var read_only: bool = false
 var hover_pos: Vector2i = Vector2i(-1, -1)
 
 
@@ -54,6 +57,20 @@ func _draw() -> void:
 	_draw_stones()
 	_draw_last_move_marker()
 	_draw_hover_preview()
+
+
+func _active_board() -> Array:
+	if not display_board.is_empty():
+		return display_board
+	return GameManager.logic.board
+
+
+func _active_last_move() -> Vector2i:
+	if display_last_move.x >= 0:
+		return display_last_move
+	if read_only:
+		return display_last_move
+	return GameManager.logic.get_last_move()
 
 
 func _scale() -> float:
@@ -116,6 +133,8 @@ func _draw_star_points() -> void:
 
 
 func _draw_forbidden_markers() -> void:
+	if read_only:
+		return
 	if not _should_show_forbidden_markers():
 		return
 	var board_data: Array = GameManager.logic.board
@@ -158,7 +177,7 @@ func _draw_forbidden_marker(pos: Vector2) -> void:
 
 
 func _draw_stones() -> void:
-	var board_data: Array = GameManager.logic.board
+	var board_data: Array = _active_board()
 	for row in range(BOARD_SIZE):
 		for col in range(BOARD_SIZE):
 			var cell: int = board_data[row][col]
@@ -196,7 +215,7 @@ func _draw_white_stone(pos: Vector2) -> void:
 
 
 func _draw_last_move_marker() -> void:
-	var last: Vector2i = GameManager.logic.get_last_move()
+	var last: Vector2i = _active_last_move()
 	if last.x < 0:
 		return
 	var pos: Vector2 = grid_to_pixel(last.x, last.y)
@@ -205,6 +224,8 @@ func _draw_last_move_marker() -> void:
 
 
 func _draw_hover_preview() -> void:
+	if read_only:
+		return
 	if hover_pos.x < 0 or not GameManager.is_my_turn or GameManager.logic.game_over:
 		return
 	if GameManager.logic.board[hover_pos.x][hover_pos.y] != _GameLogic.EMPTY:
@@ -221,6 +242,8 @@ func _draw_hover_preview() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if read_only:
+		return
 	if event is InputEventMouseMotion:
 		var new_hover: Vector2i = pixel_to_grid(event.position - global_position)
 		if new_hover != hover_pos:

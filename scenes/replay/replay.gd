@@ -12,7 +12,6 @@ const _GameLogic = preload("res://scripts/game_logic.gd")
 
 var record = null
 var cursor: int = 0
-var replay_board: Array = []
 var _playing: bool = false
 var _play_epoch: int = 0
 
@@ -24,7 +23,7 @@ func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
 	play_button.pressed.connect(_on_play_pressed)
 	back_button.pressed.connect(_on_back_pressed)
-	_init_empty_board()
+	board.read_only = true
 	if record == null:
 		cursor = 0
 		_update_view()
@@ -38,13 +37,14 @@ func _exit_tree() -> void:
 	_playing = false
 
 
-func _init_empty_board() -> void:
-	replay_board = []
+func _make_empty_board() -> Array:
+	var empty_board: Array = []
 	for _r in range(_GameLogic.BOARD_SIZE):
 		var row: Array = []
 		for _c in range(_GameLogic.BOARD_SIZE):
 			row.append(_GameLogic.EMPTY)
-		replay_board.append(row)
+		empty_board.append(row)
+	return empty_board
 
 
 func _move_count() -> int:
@@ -54,16 +54,28 @@ func _move_count() -> int:
 
 
 func _update_view() -> void:
-	_build_board_to_cursor()
+	board.display_board = _build_board_to_cursor()
+	board.display_last_move = _display_last_move()
 	_update_status()
 	_update_buttons()
 	board.queue_redraw()
 
 
-func _build_board_to_cursor() -> void:
-	_init_empty_board()
+func _display_last_move() -> Vector2i:
+	if record == null or cursor <= 0:
+		return Vector2i(-1, -1)
+	var move: Variant = record.moves[mini(cursor, _move_count()) - 1]
+	var row: int = _move_row(move)
+	var col: int = _move_col(move)
+	if row < 0 or row >= _GameLogic.BOARD_SIZE or col < 0 or col >= _GameLogic.BOARD_SIZE:
+		return Vector2i(-1, -1)
+	return Vector2i(row, col)
+
+
+func _build_board_to_cursor() -> Array:
+	var board_data: Array = _make_empty_board()
 	if record == null:
-		return
+		return board_data
 	var color: int = _GameLogic.BLACK
 	var limit: int = clampi(cursor, 0, _move_count())
 	for i in range(limit):
@@ -72,10 +84,11 @@ func _build_board_to_cursor() -> void:
 		var col: int = _move_col(move)
 		if row < 0 or row >= _GameLogic.BOARD_SIZE or col < 0 or col >= _GameLogic.BOARD_SIZE:
 			continue
-		if replay_board[row][col] != _GameLogic.EMPTY:
+		if board_data[row][col] != _GameLogic.EMPTY:
 			continue
-		replay_board[row][col] = color
+		board_data[row][col] = color
 		color = _GameLogic.WHITE if color == _GameLogic.BLACK else _GameLogic.BLACK
+	return board_data
 
 
 func _move_row(move: Variant) -> int:

@@ -170,18 +170,35 @@ func _test_replay_scene_loads_and_controls_render_board() -> void:
 	add_child(replay)
 	await get_tree().process_frame
 	_assert_eq(replay.cursor, gm.replay_record.moves.size(), "replay scene should start at final move")
-	_assert_eq(replay.replay_board[7][7], GameLogic.BLACK, "replay scene should render first black move")
-	_assert_eq(replay.replay_board[7][8], GameLogic.WHITE, "replay scene should render second white move")
-	_assert_eq(replay.replay_board[8][8], GameLogic.BLACK, "replay scene should render third black move")
+	_assert_true("read_only" in replay.board, "board should expose read_only replay guard")
+	_assert_true("display_board" in replay.board, "board should expose display_board for replay rendering")
+	_assert_true("display_last_move" in replay.board, "board should expose display_last_move for replay marker")
+	if "read_only" in replay.board:
+		_assert_true(replay.board.read_only, "replay scene should mark board read-only")
+		_assert_eq(replay.board.hover_pos, Vector2i(-1, -1), "read-only replay board should not show hover previews")
+	if "display_board" in replay.board and "display_last_move" in replay.board:
+		_assert_eq(replay.board.display_board[7][7], GameLogic.BLACK, "replay scene should render first black move via board display state")
+		_assert_eq(replay.board.display_board[7][8], GameLogic.WHITE, "replay scene should render second white move via board display state")
+		_assert_eq(replay.board.display_board[8][8], GameLogic.BLACK, "replay scene should render third black move via board display state")
+		_assert_eq(replay.board.display_last_move, Vector2i(8, 8), "replay scene should mark visible last move")
 	replay._on_start_pressed()
 	_assert_eq(replay.cursor, 0, "start control should reset cursor")
-	_assert_eq(replay.replay_board[7][7], GameLogic.EMPTY, "start control should clear board")
+	if "display_board" in replay.board and "display_last_move" in replay.board:
+		_assert_eq(replay.board.display_board[7][7], GameLogic.EMPTY, "start control should clear board display state")
+		_assert_eq(replay.board.display_last_move, Vector2i(-1, -1), "start control should clear last move marker")
+		_assert_true(replay.board.has_method("_active_last_move"), "board should expose active last move helper")
+		if replay.board.has_method("_active_last_move"):
+			_assert_eq(replay.board._active_last_move(), Vector2i(-1, -1), "empty replay display should not fall back to live game last move")
 	replay._on_next_pressed()
 	_assert_eq(replay.cursor, 1, "next control should advance cursor")
-	_assert_eq(replay.replay_board[7][7], GameLogic.BLACK, "next control should render first move")
+	if "display_board" in replay.board and "display_last_move" in replay.board:
+		_assert_eq(replay.board.display_board[7][7], GameLogic.BLACK, "next control should render first move via board display state")
+		_assert_eq(replay.board.display_last_move, Vector2i(7, 7), "next control should mark first move")
 	replay._on_prev_pressed()
 	_assert_eq(replay.cursor, 0, "previous control should decrement cursor")
-	_assert_eq(replay.replay_board[7][7], GameLogic.EMPTY, "previous control should remove last visible move")
+	if "display_board" in replay.board and "display_last_move" in replay.board:
+		_assert_eq(replay.board.display_board[7][7], GameLogic.EMPTY, "previous control should remove last visible move from board display state")
+		_assert_eq(replay.board.display_last_move, Vector2i(-1, -1), "previous control should clear last move marker")
 	replay.queue_free()
 
 

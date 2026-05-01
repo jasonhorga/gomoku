@@ -1,10 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://replay01"]
+[gd_scene load_steps=3 format=3 uid="uid://replay01"]
 
 [ext_resource type="Script" path="res://scenes/replay/replay.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/game/board.tscn" id="2"]
-
-[sub_resource type="GDScript" id="GDScript_replay_board"]
-script/source = "extends \"res://scenes/game/board.gd\"\n\nfunc _draw_forbidden_markers() -> void:\n\tpass\n\nfunc _draw_stones() -> void:\n\tvar owner_node = get_owner()\n\tif owner_node == null or not (\"replay_board\" in owner_node):\n\t\treturn\n\tvar board_data: Array = owner_node.replay_board\n\tfor row in range(BOARD_SIZE):\n\t\tfor col in range(BOARD_SIZE):\n\t\t\tvar cell: int = board_data[row][col]\n\t\t\tif cell == _GameLogic.EMPTY:\n\t\t\t\tcontinue\n\t\t\tvar pos: Vector2 = grid_to_pixel(row, col)\n\t\t\tif cell == _GameLogic.BLACK:\n\t\t\t\t_draw_black_stone(pos)\n\t\t\telse:\n\t\t\t\t_draw_white_stone(pos)\n\nfunc _draw_last_move_marker() -> void:\n\tvar owner_node = get_owner()\n\tif owner_node == null or not (\"record\" in owner_node) or owner_node.record == null or owner_node.cursor <= 0:\n\t\treturn\n\tvar move: Variant = owner_node.record.moves[owner_node.cursor - 1]\n\tvar row: int = owner_node._move_row(move)\n\tvar col: int = owner_node._move_col(move)\n\tif row < 0 or col < 0:\n\t\treturn\n\tvar pos: Vector2 = grid_to_pixel(row, col)\n\tvar marker_size: float = 6.0 * _scale()\n\tdraw_rect(Rect2(pos - Vector2(marker_size, marker_size), Vector2(marker_size * 2.0, marker_size * 2.0)), Color.RED, false, 2.0 * _scale())\n\nfunc _draw_hover_preview() -> void:\n\tpass\n\nfunc _input(_event: InputEvent) -> void:\n\tpass\n"
 
 [node name="Replay" type="Control"]
 layout_mode = 3
@@ -52,7 +49,6 @@ layout_mode = 2
 
 [node name="Board" parent="RootMargin/Layout/BoardHost/BoardFrame" instance=ExtResource("2")]
 unique_name_in_owner = true
-script = SubResource("GDScript_replay_board")
 
 [node name="SidePanel" type="VBoxContainer" parent="RootMargin/Layout"]
 layout_mode = 2
