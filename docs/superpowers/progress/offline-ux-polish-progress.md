@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** READY_TO_COMMIT_IPHONE_PORTRAIT_UI_SIZE
+**Status:** MERGED_PENDING_PUSH_AND_TESTFLIGHT
 **Workflow:** systematic-debugging + test-driven-development
-**Branch:** `offline-ux-polish`
+**Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 15:51 UTC
-**Last known commit:** `4a03b9b`
-**Current task:** iPhone portrait gameplay UI sizing fix reviewed, strengthened, and locally verified.
-**Next action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight if needed.
+**Last updated:** 2026-05-02 16:00 UTC
+**Last known commit:** `285a43c`
+**Current task:** iPhone portrait gameplay UI sizing fix merged into main and verified locally.
+**Next action:** Token-scan intended branch diff, push main, then dispatch/monitor iOS TestFlight for device validation.
 
 ---
 
@@ -39,11 +39,11 @@
 
 **Last completed safe point:** TestFlight run `25253363826` for commit `4a03b9b` succeeded, downloaded final IPA plist verified iPhone portrait plus iPad landscape arrays, and user confirmed the iPhone app is now portrait.
 
-**In progress:** Code review approved with no blockers. Follow-up strengthened the iPhone portrait test from property checks to rendered control sizes, viewport containment, and overlap checks; this exposed and fixed vertical height overflow by constraining board size to available height.
+**In progress:** `offline-ux-polish` commit `285a43c` was merged into main. Merged main was re-verified with iPhone UI, layout, replay, undo, AI watch, and `git diff --check` checks.
 
-**Blockers/questions:** None known. The worktree remains intentionally preserved for target-device fixes; `.superpowers/` is untracked scratch and must not be committed. The canonical main checkout has unrelated training-script changes, so never use blanket staging.
+**Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Commit only `scenes/game/game.gd`, `tools/test_iphone_portrait_ui_task.gd`, `tools/test_iphone_portrait_ui_task.tscn`, and this progress file; then use finishing-branch flow for merge/push/TestFlight.
+**Next exact action:** Token-scan the branch diff, push `main`, then dispatch/monitor iOS TestFlight and ask for iPhone/iPad/macOS validation.
 
 ---
 
@@ -91,6 +91,7 @@
 | 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_undo_task5.tscn` | PASS | Undo regression passed; expected invalid-history test errors appear in output. |
 | 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_replay_task6.tscn` | PASS | Replay regression passed; Linux `gomoku_neural` warning expected. |
 | 2026-05-02 iOS portrait UI sizing | `git diff --check` | PASS | No whitespace errors. |
+| 2026-05-02 iOS portrait UI sizing | Merged main verification suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `REPLAY_TASK6_TESTS`, `UNDO_TASK5_TESTS`, `AI_WATCH_TASK8_TESTS`, and `git diff --check` passed on main after merge; Linux `gomoku_neural` warning expected. |
 
 ---
 
