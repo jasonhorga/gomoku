@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** FIXING_DEVICE_VALIDATION_ISSUE
+**Status:** READY_TO_COMMIT_IPHONE_PORTRAIT_UI_SIZE
 **Workflow:** systematic-debugging + test-driven-development
 **Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 13:26 UTC
-**Last known commit:** `b34d002`
-**Current task:** Fix iOS portrait export after device validation failure
-**Next action:** Review, commit, merge, push, and dispatch a new TestFlight build with plist/runtime orientation verification.
+**Last updated:** 2026-05-02 15:51 UTC
+**Last known commit:** `4a03b9b`
+**Current task:** iPhone portrait gameplay UI sizing fix reviewed, strengthened, and locally verified.
+**Next action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight if needed.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** All CI/CD for `b34d002` passed, but iOS device validation still showed landscape.
+**Last completed safe point:** TestFlight run `25253363826` for commit `4a03b9b` succeeded, downloaded final IPA plist verified iPhone portrait plus iPad landscape arrays, and user confirmed the iPhone app is now portrait.
 
-**In progress:** Root cause found: final TestFlight IPA `Info.plist` had iPhone `UISupportedInterfaceOrientations=[LandscapeLeft]`; Godot 4.5 exporter/runtime use `display/window/handheld/orientation`, not the ignored `orientation/*` export preset keys.
+**In progress:** Code review approved with no blockers. Follow-up strengthened the iPhone portrait test from property checks to rendered control sizes, viewport containment, and overlap checks; this exposed and fixed vertical height overflow by constraining board size to available height.
 
-**Blockers/questions:** None known. The worktree remains intentionally preserved for target-device fixes if needed.
+**Blockers/questions:** None known. The worktree remains intentionally preserved for target-device fixes; `.superpowers/` is untracked scratch and must not be committed. The canonical main checkout has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Review, commit, merge, push, and dispatch a new TestFlight build; verify downloaded IPA plist before asking for device validation.
+**Next exact action:** Commit only `scenes/game/game.gd`, `tools/test_iphone_portrait_ui_task.gd`, `tools/test_iphone_portrait_ui_task.tscn`, and this progress file; then use finishing-branch flow for merge/push/TestFlight.
 
 ---
 
@@ -62,6 +62,7 @@
 | Task 5 | Spec compliance | APPROVED | subagent `a615dfa193e8fa96d` | Rechecked font coverage, no font changes, clean whitespace, no Renju matches, no token-shaped matches; accepted prior test evidence. | None. |
 | Task 5 | Code quality | APPROVED | subagent `a58fb984641340b37` | Verification evidence sufficient; no font files changed; `.superpowers/` is not in branch diff but remains untracked scratch. | Stage only intended files; never use blanket staging. |
 | Whole branch | Final code review | READY_WITH_NOTES | subagent `afac91ce03990545e` | No merge-blocking issues; minor stale progress metadata fixed after review. | Proceed to finishing/merge flow. |
+| iPhone portrait UI sizing | Code quality | APPROVED_AFTER_TEST_STRENGTHENING | subagent `af2fdc8b2e6d73128` | No blockers. Important suggestion: assert rendered sizes/viewport containment, not just properties. | Strengthened test; found and fixed vertical height overflow. |
 
 ---
 
@@ -84,6 +85,12 @@
 | 2026-05-02 iOS portrait fix | `python3 -m pytest ios_plugin/tests/test_patch_ios_orientation.py tools/test_ios_orientation_config.py -q` | PASS | 7 tests: plist patch, validation, framework plist guard, workflow order, runtime sensor setting, ignored preset-key removal, final IPA validation. |
 | 2026-05-02 iOS portrait fix | Real IPA plist simulation with `patch_ios_orientation.py` | PASS | Patches iPhone to `Portrait` and iPad to both landscape orientations while preserving `UIDeviceFamily=[1,2]`. |
 | 2026-05-02 iOS portrait fix | `godot --headless --path . res://tools/test_game_layout_task4.tscn` | PASS | Layout predicate still passes; Linux GDExtension warning remains expected. |
+| 2026-05-02 iOS portrait UI sizing | New focused test harness `tools/test_iphone_portrait_ui_task.gd/.tscn` | PASS | Harness uses 390×844 `SubViewport`; RED failed on `%TurnLabel` font threshold, then strengthened rendered-size/viewport checks found vertical overflow; GREEN passes after height-constrained board sizing. |
+| 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_game_layout_task4.tscn` | PASS | Existing layout predicate test still passes; Linux `gomoku_neural` warning expected. |
+| 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | AI watch regression passed; Linux `gomoku_neural` warning expected. |
+| 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_undo_task5.tscn` | PASS | Undo regression passed; expected invalid-history test errors appear in output. |
+| 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_replay_task6.tscn` | PASS | Replay regression passed; Linux `gomoku_neural` warning expected. |
+| 2026-05-02 iOS portrait UI sizing | `git diff --check` | PASS | No whitespace errors. |
 
 ---
 
@@ -122,3 +129,10 @@
 - `export_presets.cfg` — iOS portrait orientation booleans.
 - `tools/test_game_layout_task4.gd` — layout predicate test.
 - `tools/test_game_layout_task4.tscn` — layout test scene.
+- `project.godot` — runtime iOS orientation set to sensor for device-specific plist restrictions.
+- `.github/workflows/ios.yml` — patches exported iOS plist and validates final IPA orientation.
+- `ios_plugin/scripts/patch_ios_orientation.py` — patches/validates iPhone portrait and iPad landscape plist entries.
+- `ios_plugin/tests/test_patch_ios_orientation.py` — plist patch regression tests.
+- `tools/test_ios_orientation_config.py` — project/workflow orientation configuration tests.
+- `tools/test_iphone_portrait_ui_task.gd` — WIP focused iPhone portrait gameplay readability test.
+- `tools/test_iphone_portrait_ui_task.tscn` — WIP focused iPhone portrait gameplay readability test scene.

@@ -134,7 +134,9 @@ func _apply_responsive_layout() -> void:
 
 	var board_size: float = 620.0
 	if use_vertical:
-		board_size = minf(float(size.x) - 24.0, 620.0)
+		var width_budget: float = float(size.x) - 24.0
+		var height_budget: float = float(size.y) - 12.0 - 300.0 - 12.0 - 228.0 - 12.0 - 12.0
+		board_size = minf(minf(width_budget, height_budget), 620.0)
 	board_size = maxf(board_size, 240.0)
 
 	board_frame.custom_minimum_size = Vector2(board_size, board_size)
@@ -142,6 +144,7 @@ func _apply_responsive_layout() -> void:
 		board.board_pixel_size = board_size
 	board.queue_redraw()
 
+	_apply_gameplay_readability(use_vertical)
 	if use_vertical:
 		_reparent_if_needed(status_container, vertical_status)
 		_reparent_if_needed(board_frame, vertical_board_host)
@@ -155,6 +158,26 @@ func _apply_responsive_layout() -> void:
 		if spacer.get_parent() != horizontal_panel_content:
 			horizontal_panel_content.add_child(spacer)
 			horizontal_panel_content.move_child(spacer, 1)
+
+
+func _apply_gameplay_readability(use_vertical: bool) -> void:
+	var turn_size: int = 30 if use_vertical else 24
+	var color_size: int = 22 if use_vertical else 18
+	var detail_size: int = 20 if use_vertical else 16
+	var action_font_size: int = 20 if use_vertical else 18
+	var action_height: float = 64.0 if use_vertical else 52.0
+
+	turn_label.add_theme_font_size_override("font_size", turn_size)
+	color_label.add_theme_font_size_override("font_size", color_size)
+	move_label.add_theme_font_size_override("font_size", detail_size)
+	message_label.add_theme_font_size_override("font_size", detail_size)
+	vertical_layout.add_theme_constant_override("separation", 12 if use_vertical else 8)
+	status_container.add_theme_constant_override("separation", 8 if use_vertical else 15)
+	actions_container.add_theme_constant_override("separation", 12 if use_vertical else 10)
+
+	for button: Button in [undo_button, pause_button, step_button, auto_button, new_game_button, back_to_menu_button, resign_button]:
+		button.custom_minimum_size.y = action_height
+		button.add_theme_font_size_override("font_size", action_font_size)
 
 
 func _reparent_if_needed(node: Node, new_parent: Node, index: int = -1) -> void:
