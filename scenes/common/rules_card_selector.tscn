@@ -1,0 +1,79 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/common/rules_card_selector.gd" id="1"]
+
+[node name="RulesCardSelector" type="VBoxContainer"]
+custom_minimum_size = Vector2(0, 132)
+theme_override_constants/separation = 10
+script = ExtResource("1")
+forbidden_enabled = true
+
+[node name="FreeCard" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "自由五子棋"
+alignment = 0
+
+[node name="FreeLabels" type="VBoxContainer" parent="FreeCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 8.0
+offset_right = -18.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="FreeTitle" type="Label" parent="FreeCard/FreeLabels"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "自由五子棋"
+
+[node name="FreeDescription" type="Label" parent="FreeCard/FreeLabels"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.78, 0.68, 0.56, 1)
+text = "双方自由落子"
+
+[node name="ForbiddenCard" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "禁手规则"
+alignment = 0
+
+[node name="ForbiddenLabels" type="VBoxContainer" parent="ForbiddenCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 8.0
+offset_right = -18.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="ForbiddenTitle" type="Label" parent="ForbiddenCard/ForbiddenLabels"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "禁手规则"
+
+[node name="ForbiddenDescription" type="Label" parent="ForbiddenCard/ForbiddenLabels"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.78, 0.68, 0.56, 1)
+text = "黑棋禁手不可落子"
