@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** COMPLETE_PENDING_MERGE
+**Status:** MERGED_PENDING_DEVICE_VALIDATION
 **Workflow:** subagent-driven-development
 **Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 12:31 UTC
-**Last known commit:** `1f75cd7`
-**Current task:** All planned tasks complete
-**Next action:** Use finishing-a-development-branch workflow to merge/sync to main and push, then keep this worktree until target-device validation passes or the user approves cleanup.
+**Last updated:** 2026-05-02 12:45 UTC
+**Last known commit:** `9207735`
+**Current task:** Merged to canonical `main`
+**Next action:** Push `main` to GitHub, trigger/monitor CI-CD, and keep this worktree until iPhone/iPad/macOS validation passes or the user approves cleanup.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** Final whole-branch review completed with `READY_WITH_NOTES` and no merge-blocking issues.
+**Last completed safe point:** `offline-ux-polish` was merged into canonical Google Drive `main` as merge commit `9207735`.
 
-**In progress:** Branch is ready for finishing/merge flow.
+**In progress:** Post-merge validation passed locally; push/CD is next.
 
-**Blockers/questions:** None known. `.superpowers/` is untracked and must not be committed.
+**Blockers/questions:** None known. The worktree remains intentionally preserved for target-device fixes if needed.
 
-**Next exact action:** Commit this progress metadata update, then use finishing-a-development-branch workflow to sync/merge without deleting the worktree.
+**Next exact action:** Commit this post-merge progress metadata update, push `main` to GitHub, trigger/monitor CI-CD, and do not delete the worktree until device validation passes or the user approves cleanup.
 
 ---
 
