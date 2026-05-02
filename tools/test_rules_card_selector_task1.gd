@@ -7,28 +7,44 @@ func _ready() -> void:
 	add_child(selector)
 	await get_tree().process_frame
 
+	var free_card: Button = selector.get_node("%FreeCard")
+	var forbidden_card: Button = selector.get_node("%ForbiddenCard")
+	var free_title: Label = selector.get_node("%FreeTitle")
+	var forbidden_title: Label = selector.get_node("%ForbiddenTitle")
+
 	assert(selector.forbidden_enabled == true)
 	assert(selector.has_signal("selection_changed"))
-	assert(selector.get_node("%FreeTitle").text == "自由五子棋")
+	assert(free_card.text == "")
+	assert(forbidden_card.text == "")
+	assert(free_title.text == "自由五子棋")
 	assert(selector.get_node("%FreeDescription").text == "双方自由落子")
-	assert(selector.get_node("%ForbiddenTitle").text == "禁手规则")
+	assert(forbidden_title.text == "✓ 禁手规则")
 	assert(selector.get_node("%ForbiddenDescription").text == "黑棋禁手不可落子")
 
 	var changed: Array[bool] = []
 	selector.selection_changed.connect(func(enabled: bool) -> void:
 		changed.append(enabled)
 	)
-	selector.get_node("%FreeCard").pressed.emit()
+	free_card.pressed.emit()
 	await get_tree().process_frame
 	assert(selector.forbidden_enabled == false)
 	assert(changed == [false])
+	assert(free_title.text == "✓ 自由五子棋")
+	assert(forbidden_title.text == "禁手规则")
+
+	selector.forbidden_enabled = true
+	await get_tree().process_frame
+	assert(selector.forbidden_enabled == true)
+	assert(changed == [false])
+	assert(free_title.text == "自由五子棋")
+	assert(forbidden_title.text == "✓ 禁手规则")
 
 	selector.set_disabled(true)
-	assert(selector.get_node("%FreeCard").disabled == true)
-	assert(selector.get_node("%ForbiddenCard").disabled == true)
+	assert(free_card.disabled == true)
+	assert(forbidden_card.disabled == true)
 	selector.set_disabled(false)
-	assert(selector.get_node("%FreeCard").disabled == false)
-	assert(selector.get_node("%ForbiddenCard").disabled == false)
+	assert(free_card.disabled == false)
+	assert(forbidden_card.disabled == false)
 
 	print("RULES_CARD_SELECTOR_TASK1_TESTS PASS")
 	get_tree().quit()
