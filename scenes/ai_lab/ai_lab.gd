@@ -11,6 +11,8 @@ const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 @onready var white_level: OptionButton = %WhiteLevel
 @onready var speed_slider: HSlider = %SpeedSlider
 @onready var speed_text: Label = %SpeedText
+@onready var renju_checkbox: CheckBox = %RenjuCheckBox
+@onready var replay_last_batch_button: Button = %ReplayLastBatchButton
 @onready var stats_label: Label = %StatsLabel
 
 var batch_running: bool = false
@@ -18,6 +20,8 @@ var batch_total: int = 0
 var batch_done: int = 0
 var batch_wins_b: int = 0
 var batch_wins_w: int = 0
+var batch_use_renju_rules: bool = false
+var last_batch_record_path: String = ""
 
 
 func _ready() -> void:
@@ -30,6 +34,7 @@ func _ready() -> void:
 	speed_slider.value_changed.connect(_on_speed_changed)
 	%WatchButton.pressed.connect(_on_watch_pressed)
 	%RunBatchButton.pressed.connect(_on_run_batch_pressed)
+	replay_last_batch_button.pressed.connect(_on_replay_last_batch_pressed)
 	%BackButton.pressed.connect(_on_back_pressed)
 
 	_update_stats()
@@ -57,7 +62,7 @@ func _create_engine(level_idx: int):
 func _on_watch_pressed() -> void:
 	var engine_b = _create_engine(black_level.selected)
 	var engine_w = _create_engine(white_level.selected)
-	GameManager.setup_ai_vs_ai(engine_b, engine_w, GameManager.forbidden_enabled)
+	GameManager.setup_ai_vs_ai(engine_b, engine_w, renju_checkbox.button_pressed)
 	GameManager.ai_move_delay = SPEED_VALUES[int(speed_slider.value)]
 	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
@@ -70,7 +75,11 @@ func _on_run_batch_pressed() -> void:
 	batch_done = 0
 	batch_wins_b = 0
 	batch_wins_w = 0
+	batch_use_renju_rules = renju_checkbox.button_pressed
+	last_batch_record_path = ""
+	replay_last_batch_button.disabled = true
 	%RunBatchButton.disabled = true
+	renju_checkbox.disabled = true
 	stats_label.text = "批量进度：0/%d..." % batch_total
 	_run_next_batch_game()
 
@@ -79,6 +88,9 @@ func _run_next_batch_game() -> void:
 	if batch_done >= batch_total:
 		batch_running = false
 		%RunBatchButton.disabled = false
+		renju_checkbox.disabled = false
+		if not last_batch_record_path.is_empty():
+			replay_last_batch_button.disabled = false
 		stats_label.text = "完成：黑=%d 白=%d 平=%d | 总记录：%d" % [
 			batch_wins_b, batch_wins_w, batch_total - batch_wins_b - batch_wins_w,
 			_GameRecord.list_records().size()]
@@ -99,12 +111,13 @@ func _run_next_batch_game() -> void:
 		engine_w = _create_engine(white_level.selected)
 
 	# Run a headless game using game logic directly
+	var use_renju_rules: bool = batch_use_renju_rules
 	var logic = _GameLogic.new()
-	logic.forbidden_enabled = GameManager.forbidden_enabled
+	logic.forbidden_enabled = use_renju_rules
 	if "forbidden_enabled" in engine_b:
-		engine_b.forbidden_enabled = GameManager.forbidden_enabled
+		engine_b.forbidden_enabled = use_renju_rules
 	if "forbidden_enabled" in engine_w:
-		engine_w.forbidden_enabled = GameManager.forbidden_enabled
+		engine_w.forbidden_enabled = use_renju_rules
 	var current = _GameLogic.BLACK
 
 	while not logic.game_over:
@@ -135,12 +148,14 @@ func _run_next_batch_game() -> void:
 	record.mode = "ai_vs_ai"
 	record.black_type = "ai_" + engine_b.get_name().to_lower()
 	record.white_type = "ai_" + engine_w.get_name().to_lower()
+	record.ruleset = "renju" if use_renju_rules else "free"
 	record.result = logic.winner
 	record.total_moves = logic.move_history.size()
 	for m in logic.move_history:
 		record.moves.append([m.x, m.y])
 	var path = _GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
-	_GameRecord.save_to_file(record, path)
+	if _GameRecord.save_to_file(record, path):
+		last_batch_record_path = path
 
 	# Attribute the win to the SELECTED dropdown level, not the board
 	# colour, so the tally is meaningful when colors alternate each game.
@@ -172,6 +187,18 @@ func _run_next_batch_game() -> void:
 func _update_stats() -> void:
 	var count = _GameRecord.list_records().size()
 	stats_label.text = "记录：%d | 就绪" % count
+
+
+func _on_replay_last_batch_pressed() -> void:
+	if last_batch_record_path.is_empty():
+		replay_last_batch_button.disabled = true
+		return
+	if not GameManager.prepare_replay_from_path(last_batch_record_path):
+		stats_label.text = "无法载入复盘：%s" % last_batch_record_path.get_file()
+		replay_last_batch_button.disabled = true
+		return
+	GameManager.replay_return_scene = "res://scenes/ai_lab/ai_lab.tscn"
+	get_tree().change_scene_to_file("res://scenes/replay/replay.tscn")
 
 
 func _on_back_pressed() -> void:

@@ -48,14 +48,8 @@ func place_stone(row: int, col: int) -> bool:
 	if board[row][col] != EMPTY:
 		return false
 
-	if forbidden_enabled and current_player == BLACK and forbidden_checker.is_forbidden_black(board, row, col):
-		board[row][col] = BLACK
-		move_history.append(Vector2i(row, col))
-		game_over = true
-		winner = WHITE
-		game_end_reason = END_REASON_FORBIDDEN
-		current_player = WHITE
-		return true
+	if is_forbidden_move(row, col, current_player):
+		return false
 
 	board[row][col] = current_player
 	move_history.append(Vector2i(row, col))
@@ -114,5 +108,44 @@ func get_last_move() -> Vector2i:
 	return move_history.back()
 
 
+func rebuild_from_history(history: Array[Vector2i]) -> bool:
+	var replay = GameLogic.new()
+	replay.forbidden_enabled = forbidden_enabled
+	for move in history:
+		if not replay.place_stone(move.x, move.y):
+			push_error("Invalid move while rebuilding history: %s" % move)
+			return false
+
+	var replay_board: Array = []
+	for row in replay.board:
+		replay_board.append(row.duplicate())
+	board = replay_board
+	current_player = replay.current_player
+	move_history = replay.move_history.duplicate()
+	game_over = replay.game_over
+	winner = replay.winner
+	forbidden_enabled = replay.forbidden_enabled
+	game_end_reason = replay.game_end_reason
+	return true
+
+
+func undo_moves(count: int) -> bool:
+	if count <= 0 or move_history.is_empty():
+		return false
+	var remaining: Array[Vector2i] = move_history.duplicate()
+	var remove_count: int = min(count, remaining.size())
+	for _i in range(remove_count):
+		remaining.pop_back()
+	return rebuild_from_history(remaining)
+
+
 func is_forbidden_move(row: int, col: int, player: int) -> bool:
 	return forbidden_enabled and player == BLACK and forbidden_checker.is_forbidden_black(board, row, col)
+
+
+func can_place_stone(row: int, col: int) -> bool:
+	if game_over:
+		return false
+	if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:
+		return false
+	return board[row][col] == EMPTY

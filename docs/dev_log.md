@@ -124,6 +124,15 @@ export_presets.cfg              — 导出配置
 
 完整改进路径见 `docs/retrain_plan.md` + `docs/gomoku_research.md`。
 
+### 2026-05-01 — CJK font subset workflow
+
+Chinese UI text is bundled through `assets/fonts/cjk_subset.otf`. After adding or changing Chinese copy, regenerate/check the subset on Mac:
+
+```bash
+python3 tools/generate_cjk_subset.py --source-font /path/to/full-cjk-font.otf
+python3 tools/generate_cjk_subset.py --check
+```
+
 ### 下一阶段建议
 
 短期（一晚）：用现在 pattern_eval（包含 split detection）从 `bootstrap_128f6b.pt` 重新 iterate，**纯 self-play 严格按 ai_journey 验证过的配方**。预期产出：识别分裂攻击的 best_model v2，~+50-100 ELO。

@@ -11,13 +11,26 @@ var players: Array = [null, null]  # [0]=BLACK controller, [1]=WHITE controller
 var my_color: int = -1
 var is_my_turn: bool = false
 var ai_move_delay: float = 0.5
+var ai_watch_paused: bool = false
+var ai_step_requested: bool = false
+var ai_move_in_progress: bool = false
 var forbidden_enabled: bool = false
+var last_game_record = null
+var replay_record = null
+var replay_return_scene: String = "res://scenes/main_menu/main_menu.tscn"
+var _move_requests_paused: bool = false
+var _move_request_epoch: int = 0
+var _ai_watch_retrying_paused_move: bool = false
+var _ai_watch_retrying_color: int = _GameLogic.EMPTY
 
 signal stone_placed(row: int, col: int, color: int)
 signal turn_changed(is_my_turn: bool)
 signal game_ended(winner: int)
+signal invalid_human_move(message: String)
 signal opponent_reset_requested()
 signal game_reset()
+signal history_changed()
+signal ai_watch_state_changed()
 
 
 func _ready() -> void:
@@ -129,6 +142,11 @@ func setup_vs_ai(human_color: int, ai_engine, p_forbidden_enabled: bool = false)
 func setup_ai_vs_ai(engine_black, engine_white, p_forbidden_enabled: bool = false) -> void:
 	mode = GameMode.AI_VS_AI
 	my_color = -1
+	ai_watch_paused = false
+	ai_step_requested = false
+	ai_move_in_progress = false
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
 	forbidden_enabled = p_forbidden_enabled
 	logic.forbidden_enabled = forbidden_enabled
 	Log.info("Engine", "setup_ai_vs_ai black=%s white=%s" % [
@@ -156,6 +174,15 @@ func _describe_engine(engine) -> String:
 # ---- Core game loop ----
 
 func start_game() -> void:
+	last_game_record = null
+	_move_requests_paused = false
+	_move_request_epoch += 1
+	ai_step_requested = false
+	ai_move_in_progress = false
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
+	if mode == GameMode.AI_VS_AI:
+		ai_watch_state_changed.emit()
 	logic.reset()
 	logic.forbidden_enabled = forbidden_enabled
 	_apply_ai_ruleset()
@@ -170,13 +197,39 @@ func start_game() -> void:
 
 
 func submit_human_move(row: int, col: int) -> void:
+	if _move_requests_paused:
+		return
 	var ctrl = _current_controller()
-	if ctrl.player_type == _PlayerController.Type.LOCAL_HUMAN:
-		ctrl.submit_move(row, col)
+	if ctrl == null or ctrl.player_type != _PlayerController.Type.LOCAL_HUMAN:
+		return
+	if not logic.can_place_stone(row, col):
+		invalid_human_move.emit("这里不能落子")
+		return
+	if logic.is_forbidden_move(row, col, logic.current_player):
+		invalid_human_move.emit("黑棋禁手，不能落子")
+		return
+	ctrl.submit_move(row, col)
 
 
 func _request_current_move() -> void:
+	if _move_requests_paused:
+		_clear_ai_watch_move_in_progress()
+		return
+	var can_retry_paused_watch_move: bool = mode == GameMode.AI_VS_AI \
+		and _ai_watch_retrying_paused_move \
+		and _ai_watch_retrying_color == logic.current_player
+	if mode == GameMode.AI_VS_AI and ai_watch_paused and not ai_step_requested and not can_retry_paused_watch_move:
+		_clear_ai_watch_move_in_progress()
+		ai_watch_state_changed.emit()
+		return
 	var ctrl = _current_controller()
+	if ctrl == null:
+		_clear_ai_watch_move_in_progress()
+		return
+	if mode == GameMode.AI_VS_AI:
+		ai_move_in_progress = true
+		ai_step_requested = false
+		ai_watch_state_changed.emit()
 	# Bracket each request with a "thinking" log so we can see how long
 	# a GDScript AI (L1-L4) spends choosing a move — previously their
 	# turns were invisible between request and _on_move_decided.
@@ -194,6 +247,9 @@ var _invalid_retries: int = 0
 
 
 func _on_move_decided(row: int, col: int) -> void:
+	if _move_requests_paused:
+		_clear_ai_watch_move_in_progress()
+		return
 	var color: int = logic.current_player
 	# One line per move regardless of source (human, GDScript L1-L4, or
 	# the Swift plugin) so the log is a full transcript. Previously only
@@ -229,12 +285,18 @@ func _on_move_decided(row: int, col: int) -> void:
 			else:
 				Log.error("Move", "no legal move, ending game")
 				logic.game_over = true
+				_clear_ai_watch_paused_retry()
+				_clear_ai_watch_move_in_progress()
 				game_ended.emit(0)
 			return
-		_request_current_move()
+		_mark_ai_watch_paused_retry(color)
+		_request_invalid_move_retry.call_deferred(color, _move_request_epoch)
 		return
 	_invalid_retries = 0
+	_clear_ai_watch_paused_retry()
 
+	if mode == GameMode.AI_VS_AI:
+		_clear_ai_watch_move_in_progress()
 	stone_placed.emit(row, col, color)
 
 	# If online, send move to remote peer
@@ -249,8 +311,11 @@ func _on_move_decided(row: int, col: int) -> void:
 		game_ended.emit(logic.winner)
 	else:
 		_update_turn_state()
+		var request_epoch: int = _move_request_epoch
 		if mode == GameMode.AI_VS_AI and ai_move_delay > 0.0:
 			await get_tree().create_timer(ai_move_delay).timeout
+			if _move_requests_paused or request_epoch != _move_request_epoch:
+				return
 		_request_current_move()
 
 
@@ -288,6 +353,46 @@ func accept_reset() -> void:
 	start_game()
 
 
+func can_undo_last_turn() -> bool:
+	if logic.game_over or mode == GameMode.ONLINE or mode == GameMode.AI_VS_AI:
+		return false
+	if logic.move_history.is_empty():
+		return false
+	return _get_undo_move_count() > 0
+
+
+func undo_last_turn() -> bool:
+	if not can_undo_last_turn():
+		return false
+
+	var undo_count: int = _get_undo_move_count()
+	var was_paused: bool = _move_requests_paused
+	var was_current_move_requested: bool = _has_current_move_request()
+
+	if not logic.undo_moves(undo_count):
+		if was_current_move_requested and not _has_current_move_request():
+			_request_current_move()
+		return false
+
+	_cancel_current_move()
+	_invalid_retries = 0
+
+	logic.forbidden_enabled = forbidden_enabled
+	_apply_ai_ruleset()
+	history_changed.emit()
+	game_reset.emit()
+	for move in logic.move_history:
+		stone_placed.emit(move.x, move.y, logic.board[move.x][move.y])
+	_update_turn_state()
+
+	if was_paused:
+		_move_requests_paused = true
+	else:
+		_move_requests_paused = false
+		_request_current_move()
+	return true
+
+
 func _on_reset_requested() -> void:
 	opponent_reset_requested.emit()
 
@@ -298,6 +403,17 @@ func _on_reset_accepted() -> void:
 
 
 # ---- Helpers ----
+
+func _get_undo_move_count() -> int:
+	if mode != GameMode.VS_AI:
+		return 1
+	var current_ctrl = _current_controller()
+	if current_ctrl != null and current_ctrl.player_type == _PlayerController.Type.LOCAL_HUMAN:
+		if logic.move_history.size() < 2:
+			return 0
+		return 2
+	return 1
+
 
 func _current_controller():
 	return players[_color_index(logic.current_player)]
@@ -322,12 +438,94 @@ func _first_empty_cell() -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+func set_ai_watch_paused(paused: bool) -> void:
+	if mode != GameMode.AI_VS_AI:
+		return
+	if ai_watch_paused == paused:
+		ai_watch_state_changed.emit()
+		if not paused:
+			_move_request_epoch += 1
+			_request_current_move_if_ai_watch_waiting()
+		return
+	ai_watch_paused = paused
+	ai_step_requested = false
+	_move_request_epoch += 1
+	ai_watch_state_changed.emit()
+	if not ai_watch_paused:
+		_request_current_move_if_ai_watch_waiting()
+
+
+func request_ai_watch_step() -> void:
+	if mode != GameMode.AI_VS_AI or logic.game_over or ai_move_in_progress:
+		ai_watch_state_changed.emit()
+		return
+	ai_watch_paused = true
+	ai_step_requested = true
+	_move_request_epoch += 1
+	ai_watch_state_changed.emit()
+	_request_current_move_if_ai_watch_waiting()
+
+
+func _request_current_move_if_ai_watch_waiting() -> void:
+	if mode != GameMode.AI_VS_AI or logic.game_over or ai_move_in_progress:
+		return
+	_request_current_move()
+
+
+func _request_invalid_move_retry(color: int, request_epoch: int) -> void:
+	if _move_requests_paused or request_epoch != _move_request_epoch or logic.game_over or logic.current_player != color:
+		return
+	_request_current_move()
+
+
+func _clear_ai_watch_move_in_progress() -> void:
+	if mode != GameMode.AI_VS_AI:
+		return
+	if ai_move_in_progress:
+		ai_move_in_progress = false
+		ai_watch_state_changed.emit()
+
+
+func _mark_ai_watch_paused_retry(color: int) -> void:
+	if mode == GameMode.AI_VS_AI and ai_watch_paused:
+		_ai_watch_retrying_paused_move = true
+		_ai_watch_retrying_color = color
+
+
+func _clear_ai_watch_paused_retry() -> void:
+	_ai_watch_retrying_paused_move = false
+	_ai_watch_retrying_color = _GameLogic.EMPTY
+
+
+func pause_current_move() -> void:
+	_move_requests_paused = true
+	_move_request_epoch += 1
+	_cancel_current_move()
+	_clear_ai_watch_move_in_progress()
+
+
+func resume_current_move() -> void:
+	if not _move_requests_paused:
+		return
+	_move_requests_paused = false
+	_move_request_epoch += 1
+	_request_current_move()
+
+
 func _cancel_current_move() -> void:
+	_move_request_epoch += 1
+	_clear_ai_watch_paused_retry()
 	for p in players:
 		if p != null:
 			if p.move_decided.is_connected(_on_move_decided):
 				p.move_decided.disconnect(_on_move_decided)
 			p.cancel()
+	_clear_ai_watch_move_in_progress()
+
+
+func _has_current_move_request() -> bool:
+	var ctrl = _current_controller()
+	return ctrl != null and ctrl.move_decided.is_connected(_on_move_decided)
 
 
 func _get_player_type_string(player_idx: int) -> String:
@@ -347,7 +545,26 @@ func _get_player_type_string(player_idx: int) -> String:
 			return "unknown"
 
 
-func _save_game_record() -> void:
+func prepare_replay_from_last_game() -> bool:
+	if last_game_record == null:
+		replay_record = null
+		return false
+	replay_record = last_game_record
+	return true
+
+
+func prepare_replay_from_path(path: String) -> bool:
+	var GameRecord = load("res://scripts/data/game_record.gd")
+	var record = GameRecord.load_from_file(path)
+	if record == null:
+		replay_record = null
+		return false
+	replay_record = record
+	return true
+
+
+func _save_game_record(path_override: String = "") -> bool:
+	last_game_record = null
 	var GameRecord = load("res://scripts/data/game_record.gd")
 	var record = GameRecord.new()
 	record.timestamp = Time.get_datetime_string_from_system().replace("T", "_").replace(":", "-")
@@ -358,12 +575,18 @@ func _save_game_record() -> void:
 		GameMode.AI_VS_AI: record.mode = "ai_vs_ai"
 	record.black_type = _get_player_type_string(0)
 	record.white_type = _get_player_type_string(1)
+	record.ruleset = "renju" if forbidden_enabled else "free"
 	record.result = logic.winner
 	record.total_moves = logic.move_history.size()
 	for m in logic.move_history:
 		record.moves.append([m.x, m.y])
-	var path = GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
-	GameRecord.save_to_file(record, path)
+	var path: String = path_override
+	if path.is_empty():
+		path = GameRecord.get_records_dir() + "/" + record.timestamp + ".json"
+	if GameRecord.save_to_file(record, path):
+		last_game_record = record
+		return true
+	return false
 
 
 func _disconnect_network_signals() -> void:

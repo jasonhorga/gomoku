@@ -23,8 +23,7 @@ func _ready() -> void:
 
 
 func _on_local_pvp_pressed() -> void:
-	GameManager.setup_local_pvp()
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+	get_tree().change_scene_to_file("res://scenes/local_setup/local_setup.tscn")
 
 
 func _on_vs_ai_pressed() -> void:

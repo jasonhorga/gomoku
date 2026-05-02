@@ -1,0 +1,122 @@
+[gd_scene load_steps=3 format=3 uid="uid://replay01"]
+
+[ext_resource type="Script" path="res://scenes/replay/replay.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/game/board.tscn" id="2"]
+
+[node name="Replay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.09, 0.06, 1)
+
+[node name="RootMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Layout" type="HBoxContainer" parent="RootMargin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BoardHost" type="CenterContainer" parent="RootMargin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+
+[node name="BoardFrame" type="Control" parent="RootMargin/Layout/BoardHost"]
+custom_minimum_size = Vector2(620, 620)
+layout_mode = 2
+
+[node name="Board" parent="RootMargin/Layout/BoardHost/BoardFrame" instance=ExtResource("2")]
+unique_name_in_owner = true
+
+[node name="SidePanel" type="VBoxContainer" parent="RootMargin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="RootMargin/Layout/SidePanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "棋局复盘"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="RootMargin/Layout/SidePanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.86, 0.76, 0.62, 1)
+text = "载入中..."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="RootMargin/Layout/SidePanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Controls" type="VBoxContainer" parent="RootMargin/Layout/SidePanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StartButton" type="Button" parent="RootMargin/Layout/SidePanel/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 18
+text = "回到开局"
+
+[node name="ControlRow" type="HBoxContainer" parent="RootMargin/Layout/SidePanel/Controls"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PrevButton" type="Button" parent="RootMargin/Layout/SidePanel/Controls/ControlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 18
+text = "上一步"
+
+[node name="NextButton" type="Button" parent="RootMargin/Layout/SidePanel/Controls/ControlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 18
+text = "下一步"
+
+[node name="PlayButton" type="Button" parent="RootMargin/Layout/SidePanel/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 18
+text = "播放"
+
+[node name="BackButton" type="Button" parent="RootMargin/Layout/SidePanel/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 18
+text = "返回"
