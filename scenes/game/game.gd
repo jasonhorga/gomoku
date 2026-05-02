@@ -120,9 +120,15 @@ func _configure_for_mode() -> void:
 			]
 
 
+func _should_use_vertical_layout(size: Vector2i) -> bool:
+	var is_portrait: bool = size.y > size.x
+	var narrow_width: bool = size.x <= 700
+	return is_portrait and narrow_width
+
+
 func _apply_responsive_layout() -> void:
 	var size: Vector2i = get_viewport_rect().size
-	var use_vertical: bool = OS.get_name() == "iOS" and size.y > size.x
+	var use_vertical: bool = _should_use_vertical_layout(size)
 	vertical_layout.visible = use_vertical
 	horizontal_layout.visible = not use_vertical
 
