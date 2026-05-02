@@ -11,7 +11,7 @@ const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 @onready var white_level: OptionButton = %WhiteLevel
 @onready var speed_slider: HSlider = %SpeedSlider
 @onready var speed_text: Label = %SpeedText
-@onready var renju_checkbox: CheckBox = %RenjuCheckBox
+@onready var rules_selector = %RulesSelector
 @onready var replay_last_batch_button: Button = %ReplayLastBatchButton
 @onready var stats_label: Label = %StatsLabel
 
@@ -62,7 +62,7 @@ func _create_engine(level_idx: int):
 func _on_watch_pressed() -> void:
 	var engine_b = _create_engine(black_level.selected)
 	var engine_w = _create_engine(white_level.selected)
-	GameManager.setup_ai_vs_ai(engine_b, engine_w, renju_checkbox.button_pressed)
+	GameManager.setup_ai_vs_ai(engine_b, engine_w, rules_selector.forbidden_enabled)
 	GameManager.ai_move_delay = SPEED_VALUES[int(speed_slider.value)]
 	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
@@ -75,11 +75,11 @@ func _on_run_batch_pressed() -> void:
 	batch_done = 0
 	batch_wins_b = 0
 	batch_wins_w = 0
-	batch_use_renju_rules = renju_checkbox.button_pressed
+	batch_use_renju_rules = rules_selector.forbidden_enabled
 	last_batch_record_path = ""
 	replay_last_batch_button.disabled = true
 	%RunBatchButton.disabled = true
-	renju_checkbox.disabled = true
+	rules_selector.set_disabled(true)
 	stats_label.text = "批量进度：0/%d..." % batch_total
 	_run_next_batch_game()
 
@@ -88,7 +88,7 @@ func _run_next_batch_game() -> void:
 	if batch_done >= batch_total:
 		batch_running = false
 		%RunBatchButton.disabled = false
-		renju_checkbox.disabled = false
+		rules_selector.set_disabled(false)
 		if not last_batch_record_path.is_empty():
 			replay_last_batch_button.disabled = false
 		stats_label.text = "完成：黑=%d 白=%d 平=%d | 总记录：%d" % [

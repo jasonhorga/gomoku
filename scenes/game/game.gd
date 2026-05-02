@@ -173,9 +173,7 @@ func _update_color_label() -> void:
 
 
 func _ruleset_suffix() -> String:
-	if GameManager.forbidden_enabled:
-		return " · 禁手"
-	return ""
+	return "（禁手规则）" if GameManager.forbidden_enabled else "（自由五子棋）"
 
 
 func _friendly_engine_name(player_idx: int) -> String:
