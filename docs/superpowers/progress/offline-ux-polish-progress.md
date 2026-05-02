@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** IN_PROGRESS
+**Status:** COMPLETE_PENDING_MERGE
 **Workflow:** subagent-driven-development
 **Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 12:19 UTC
-**Last known commit:** `d31ed17`
-**Current task:** Task 5 — Refresh font subset and final local verification
-**Next action:** Commit progress artifact only, mark Task 5 complete, then dispatch final whole-branch review.
+**Last updated:** 2026-05-02 12:31 UTC
+**Last known commit:** `1f75cd7`
+**Current task:** All planned tasks complete
+**Next action:** Use finishing-a-development-branch workflow to merge/sync to main and push, then keep this worktree until target-device validation passes or the user approves cleanup.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** Task 4 passed spec and code-quality review and cleanup/progress was committed as `d31ed17`.
+**Last completed safe point:** Final whole-branch review completed with `READY_WITH_NOTES` and no merge-blocking issues.
 
-**In progress:** All plan tasks are complete; final whole-branch review is next.
+**In progress:** Branch is ready for finishing/merge flow.
 
 **Blockers/questions:** None known. `.superpowers/` is untracked and must not be committed.
 
-**Next exact action:** Commit progress artifact only, run final whole-branch review, then use finishing-a-development-branch workflow to sync/merge without deleting the worktree.
+**Next exact action:** Commit this progress metadata update, then use finishing-a-development-branch workflow to sync/merge without deleting the worktree.
 
 ---
 
@@ -61,6 +61,7 @@
 | Task 4 | Code quality | APPROVED | subagent `a8225d6cab1910378` | No quality issues; noted `game.free()` cleanup is good test hygiene. | Commit cleanup/progress. |
 | Task 5 | Spec compliance | APPROVED | subagent `a615dfa193e8fa96d` | Rechecked font coverage, no font changes, clean whitespace, no Renju matches, no token-shaped matches; accepted prior test evidence. | None. |
 | Task 5 | Code quality | APPROVED | subagent `a58fb984641340b37` | Verification evidence sufficient; no font files changed; `.superpowers/` is not in branch diff but remains untracked scratch. | Stage only intended files; never use blanket staging. |
+| Whole branch | Final code review | READY_WITH_NOTES | subagent `afac91ce03990545e` | No merge-blocking issues; minor stale progress metadata fixed after review. | Proceed to finishing/merge flow. |
 
 ---
 
