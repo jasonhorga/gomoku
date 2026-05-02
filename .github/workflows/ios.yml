@@ -153,6 +153,8 @@ jobs:
           set -e
           mkdir -p build/ios
           godot --headless --export-release "iOS" build/ios/gomoku.ipa
+          python3 ios_plugin/scripts/patch_ios_orientation.py build/ios
+          python3 ios_plugin/scripts/patch_ios_orientation.py --validate build/ios
           ls -la build/ios/
 
       - name: Set up Ruby
@@ -192,6 +194,16 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
         run: bundle exec fastlane beta
+
+      - name: Validate final IPA orientation plist
+        run: |
+          set -e
+          rm -rf /tmp/gomoku_ipa_check
+          mkdir -p /tmp/gomoku_ipa_check
+          unzip -q build/ios/gomoku.ipa -d /tmp/gomoku_ipa_check
+          app_plist=$(find /tmp/gomoku_ipa_check/Payload -maxdepth 2 -name Info.plist | head -1)
+          test -n "$app_plist"
+          python3 ios_plugin/scripts/patch_ios_orientation.py --validate "$app_plist"
 
       - name: Upload IPA artifact
         if: success()
