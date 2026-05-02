@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** PUSHED_PENDING_TESTFLIGHT_DEVICE_VALIDATION
+**Status:** TESTFLIGHT_SUCCEEDED_PENDING_DEVICE_VALIDATION
 **Workflow:** systematic-debugging + test-driven-development
 **Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 16:12 UTC
-**Last known commit:** `bb2b95c`
-**Current task:** iPhone portrait gameplay UI sizing fix pushed to origin/main and TestFlight run `25256049033` is in progress.
-**Next action:** Check/continue monitoring GitHub Actions run `25256049033`; if it succeeds, inspect/verify final IPA artifacts if available, then ask for iPhone/iPad/macOS device validation.
+**Last updated:** 2026-05-02 16:14 UTC
+**Last known commit:** `3aa7054`
+**Current task:** TestFlight run `25256049033` succeeded for iPhone portrait gameplay UI sizing fix.
+**Next action:** Inspect/verify final IPA artifacts if available, then ask user to validate iPhone portrait gameplay sizing plus iPad/macOS layout on devices.
 
 ---
 
@@ -39,11 +39,11 @@
 
 **Last completed safe point:** TestFlight run `25253363826` for commit `4a03b9b` succeeded, downloaded final IPA plist verified iPhone portrait plus iPad landscape arrays, and user confirmed the iPhone app is now portrait.
 
-**In progress:** Main was pushed to origin at `bb2b95c`; TestFlight workflow_dispatch run `25256049033` is in progress for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27` and is being monitored in background task `b89y65gc6`.
+**In progress:** TestFlight workflow_dispatch run `25256049033` completed successfully for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27`. Final durable checkpoint commit is `3aa7054`.
 
 **Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Check GitHub Actions run `25256049033` or background task `b89y65gc6`; if the TestFlight build succeeds, inspect/verify final IPA artifacts where available, then ask for iPhone/iPad/macOS validation.
+**Next exact action:** Inspect/verify final IPA artifacts from run `25256049033` if available, then ask user to validate iPhone portrait gameplay sizing plus iPad/macOS layout on devices.
 
 ---
 
@@ -94,7 +94,7 @@
 | 2026-05-02 iOS portrait UI sizing | Merged main verification suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `REPLAY_TASK6_TESTS`, `UNDO_TASK5_TESTS`, `AI_WATCH_TASK8_TESTS`, and `git diff --check` passed on main after merge; Linux `gomoku_neural` warning expected. |
 | 2026-05-02 iOS portrait UI sizing | token-shaped scan over `git diff origin/main...HEAD` before push | PASS | No matches; scan covered committed diff for `fd16f48` push. |
 | 2026-05-02 iOS portrait UI sizing | `git push origin main` | PASS | Pushed `4a03b9b..fd16f48` then checkpoint `fd16f48..bb2b95c` to GitHub. |
-| 2026-05-02 iOS portrait UI sizing | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` | IN_PROGRESS | Run `25256049033` for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27`; background monitor task `b89y65gc6`. |
+| 2026-05-02 iOS portrait UI sizing | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25256049033` | PASS | Run `25256049033` succeeded for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27`; background monitor task `b89y65gc6` exited 0. |
 
 ---
 
