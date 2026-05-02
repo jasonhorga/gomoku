@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** MERGED_PENDING_PUSH_AND_TESTFLIGHT
+**Status:** PUSHED_PENDING_TESTFLIGHT_DEVICE_VALIDATION
 **Workflow:** systematic-debugging + test-driven-development
 **Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 16:00 UTC
-**Last known commit:** `285a43c`
-**Current task:** iPhone portrait gameplay UI sizing fix merged into main and verified locally.
-**Next action:** Token-scan intended branch diff, push main, then dispatch/monitor iOS TestFlight for device validation.
+**Last updated:** 2026-05-02 16:05 UTC
+**Last known commit:** `fd16f48`
+**Current task:** iPhone portrait gameplay UI sizing fix merged, locally verified, token-scanned, and pushed to origin/main.
+**Next action:** Dispatch/monitor iOS TestFlight for commit `fd16f48`, verify final IPA if available, then ask for iPhone/iPad/macOS device validation.
 
 ---
 
@@ -39,11 +39,11 @@
 
 **Last completed safe point:** TestFlight run `25253363826` for commit `4a03b9b` succeeded, downloaded final IPA plist verified iPhone portrait plus iPad landscape arrays, and user confirmed the iPhone app is now portrait.
 
-**In progress:** `offline-ux-polish` commit `285a43c` was merged into main. Merged main was re-verified with iPhone UI, layout, replay, undo, AI watch, and `git diff --check` checks.
+**In progress:** Main was pushed to origin at `fd16f48` after token scan reported no matches. GitHub Actions list still only showed prior TestFlight workflow_dispatch run `25253363826`, so a new TestFlight dispatch/monitor step is still needed.
 
 **Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Token-scan the branch diff, push `main`, then dispatch/monitor iOS TestFlight and ask for iPhone/iPad/macOS validation.
+**Next exact action:** Dispatch or monitor iOS TestFlight for `fd16f48`; verify final IPA orientation/layout evidence where possible, then ask for iPhone/iPad/macOS validation.
 
 ---
 
@@ -92,6 +92,8 @@
 | 2026-05-02 iOS portrait UI sizing | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_replay_task6.tscn` | PASS | Replay regression passed; Linux `gomoku_neural` warning expected. |
 | 2026-05-02 iOS portrait UI sizing | `git diff --check` | PASS | No whitespace errors. |
 | 2026-05-02 iOS portrait UI sizing | Merged main verification suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `REPLAY_TASK6_TESTS`, `UNDO_TASK5_TESTS`, `AI_WATCH_TASK8_TESTS`, and `git diff --check` passed on main after merge; Linux `gomoku_neural` warning expected. |
+| 2026-05-02 iOS portrait UI sizing | token-shaped scan over `git diff origin/main...HEAD` before push | PASS | No matches; scan covered committed diff for `fd16f48` push. |
+| 2026-05-02 iOS portrait UI sizing | `git push origin main` | PASS | Pushed `4a03b9b..fd16f48` to GitHub. |
 
 ---
 
