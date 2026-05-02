@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/ai_setup/ai_setup.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/common/rules_card_selector.tscn" id="2"]
 
 [node name="AISetup" type="Control"]
 layout_mode = 3
@@ -118,10 +119,9 @@ custom_minimum_size = Vector2(0, 40)
 theme_override_font_sizes/font_size = 16
 text = "Level 6 - Neural Net"
 
-[node name="RenjuCheckBox" type="CheckBox" parent="VBoxContainer"]
+[node name="RulesSelector" parent="VBoxContainer" instance=ExtResource("2")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "禁手规则（Renju）"
 
 [node name="BottomButtons" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2

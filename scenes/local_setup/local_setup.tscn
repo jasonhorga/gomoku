@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/local_setup/local_setup.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/common/rules_card_selector.tscn" id="2"]
 
 [node name="LocalSetup" type="Control"]
 layout_mode = 3
@@ -28,38 +29,31 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -220.0
-offset_top = -170.0
+offset_top = -210.0
 offset_right = 220.0
-offset_bottom = 170.0
+offset_bottom = 210.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 14
 
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
 text = "本地双人"
 horizontal_alignment = 1
 
-[node name="RulesLabel" type="Label" parent="VBoxContainer"]
+[node name="SubtitleLabel" type="Label" parent="VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "选择规则："
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.78, 0.68, 0.56, 1)
+text = "选择规则后开始对局"
 horizontal_alignment = 1
 
-[node name="FreeButton" type="Button" parent="VBoxContainer"]
+[node name="RulesSelector" parent="VBoxContainer" instance=ExtResource("2")]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(0, 52)
-theme_override_font_sizes/font_size = 18
-text = "自由规则"
-
-[node name="RenjuButton" type="Button" parent="VBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(0, 52)
-theme_override_font_sizes/font_size = 18
-text = "禁手规则 Renju"
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 unique_name_in_owner = true
