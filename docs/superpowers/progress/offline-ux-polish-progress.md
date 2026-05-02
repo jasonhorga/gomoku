@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** MERGED_PENDING_DEVICE_VALIDATION
-**Workflow:** subagent-driven-development
+**Status:** FIXING_DEVICE_VALIDATION_ISSUE
+**Workflow:** systematic-debugging + test-driven-development
 **Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 12:45 UTC
-**Last known commit:** `9207735`
-**Current task:** Merged to canonical `main`
-**Next action:** Push `main` to GitHub, trigger/monitor CI-CD, and keep this worktree until iPhone/iPad/macOS validation passes or the user approves cleanup.
+**Last updated:** 2026-05-02 13:26 UTC
+**Last known commit:** `b34d002`
+**Current task:** Fix iOS portrait export after device validation failure
+**Next action:** Review, commit, merge, push, and dispatch a new TestFlight build with plist/runtime orientation verification.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** `offline-ux-polish` was merged into canonical Google Drive `main` as merge commit `9207735`.
+**Last completed safe point:** All CI/CD for `b34d002` passed, but iOS device validation still showed landscape.
 
-**In progress:** Post-merge validation passed locally; push/CD is next.
+**In progress:** Root cause found: final TestFlight IPA `Info.plist` had iPhone `UISupportedInterfaceOrientations=[LandscapeLeft]`; Godot 4.5 exporter/runtime use `display/window/handheld/orientation`, not the ignored `orientation/*` export preset keys.
 
 **Blockers/questions:** None known. The worktree remains intentionally preserved for target-device fixes if needed.
 
-**Next exact action:** Commit this post-merge progress metadata update, push `main` to GitHub, trigger/monitor CI-CD, and do not delete the worktree until device validation passes or the user approves cleanup.
+**Next exact action:** Review, commit, merge, push, and dispatch a new TestFlight build; verify downloaded IPA plist before asking for device validation.
 
 ---
 
@@ -79,6 +79,11 @@
 | 2026-05-02 Task 5 | `grep -R "Renju" -n scenes project.godot` | PASS | No matches; exit code 1. |
 | 2026-05-02 Task 5 | token-shaped scan over `git diff main...HEAD` | PASS | No matches; grep exit code 1. |
 | 2026-05-02 Task 5 | `git diff --check` | PASS | Initially blocked on progress-file trailing spaces; fixed by controller and re-run clean. |
+| 2026-05-02 iOS portrait debug | Downloaded TestFlight run `25252306554` IPA and read `Payload/gomoku.app/Info.plist` | FAIL FOUND | iPhone orientations were `['UIInterfaceOrientationLandscapeLeft']`; iPad was `['UIInterfaceOrientationLandscapeRight']`. |
+| 2026-05-02 iOS portrait debug | Godot 4.5 source inspection | ROOT CAUSE | iOS exporter/runtime read `display/window/handheld/orientation`; `orientation/*` preset keys are ignored. |
+| 2026-05-02 iOS portrait fix | `python3 -m pytest ios_plugin/tests/test_patch_ios_orientation.py tools/test_ios_orientation_config.py -q` | PASS | 7 tests: plist patch, validation, framework plist guard, workflow order, runtime sensor setting, ignored preset-key removal, final IPA validation. |
+| 2026-05-02 iOS portrait fix | Real IPA plist simulation with `patch_ios_orientation.py` | PASS | Patches iPhone to `Portrait` and iPad to both landscape orientations while preserving `UIDeviceFamily=[1,2]`. |
+| 2026-05-02 iOS portrait fix | `godot --headless --path . res://tools/test_game_layout_task4.tscn` | PASS | Layout predicate still passes; Linux GDExtension warning remains expected. |
 
 ---
 
