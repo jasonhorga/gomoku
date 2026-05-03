@@ -153,7 +153,7 @@ jobs:
           set -e
           mkdir -p build/ios
           godot --headless --export-release "iOS" build/ios/gomoku.ipa
-          unzip -p build/ios/gomoku.ipa Payload/gomoku.app/gomoku.pck | strings | grep -q 'UI-DIAG'
+          unzip -p build/ios/gomoku.ipa Payload/gomoku.app/gomoku.pck | strings | grep -q 'scripts/autoload/build_diagnostics.gdc'
           python3 ios_plugin/scripts/patch_ios_orientation.py build/ios
           python3 ios_plugin/scripts/patch_ios_orientation.py --validate build/ios
           ls -la build/ios/
