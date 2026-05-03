@@ -1,5 +1,17 @@
 extends Node
 
+const SMALL_IPHONE_SIZE := Vector2i(375, 812)
+const STANDARD_IPHONE_SIZE := Vector2i(390, 844)
+const PROMAX_IPHONE_SIZE := Vector2i(430, 932)
+const PROMAX_WIDE_IPHONE_SIZE := Vector2i(440, 956)
+
+const PHONE_SIDE_MARGIN_MAX: float = 20.0
+const PROMAX_CONTENT_MIN_WIDTH: float = 396.0
+const PROMAX_BOARD_MIN_SIZE: float = 396.0
+const PROMAX_BUTTON_MIN_HEIGHT: float = 54.0
+const PROMAX_STATUS_MAIN_FONT_MIN: int = 22
+const PROMAX_BUTTON_FONT_MIN: int = 18
+
 const SHORT_PORTRAIT_BOARD_MIN := 300.0
 
 func _find_node(root: Node, target_name: String) -> Node:
@@ -44,6 +56,24 @@ func _assert_min_width(control: Control, min_width: float, message: String) -> b
 		rect.size.x >= min_width,
 		"%s (width=%.1f, min=%.1f, rect=%s)" % [message, rect.size.x, min_width, rect]
 	)
+
+
+func _assert_square_size(control: Control, min_size: float, max_size: float, message: String) -> bool:
+	var rect := control.get_global_rect()
+	return _expect(
+		rect.size.x >= min_size and rect.size.y >= min_size and rect.size.x <= max_size and rect.size.y <= max_size and absf(rect.size.x - rect.size.y) <= 1.0,
+		"%s square size %.1fx%.1f expected %.1f..%.1f rect=%s" % [message, rect.size.x, rect.size.y, min_size, max_size, rect]
+	)
+
+
+func _assert_min_height(control: Control, min_height: float, message: String) -> bool:
+	var rect := control.get_global_rect()
+	return _expect(rect.size.y >= min_height, "%s height %.1f expected >= %.1f rect=%s" % [message, rect.size.y, min_height, rect])
+
+
+func _assert_font_size(control: Control, override_name: String, min_size: int, message: String) -> bool:
+	var font_size := control.get_theme_font_size(override_name)
+	return _expect(font_size >= min_size, "%s font size %d expected >= %d" % [message, font_size, min_size])
 
 
 func _new_game_in_viewport(viewport_size: Vector2i) -> Dictionary:
@@ -235,7 +265,7 @@ func _assert_chrome_baseline(game: Node) -> bool:
 
 
 func _test_standard_portrait() -> void:
-	var fixture := await _new_game_in_viewport(Vector2i(390, 844))
+	var fixture := await _new_game_in_viewport(STANDARD_IPHONE_SIZE)
 	var game: Node = fixture.game
 	var viewport: SubViewport = fixture.viewport
 	if not _assert_common_portrait_layout(game, viewport.size):
@@ -263,7 +293,7 @@ func _test_short_portrait() -> void:
 
 
 func _test_large_portrait() -> void:
-	var fixture := await _new_game_in_viewport(Vector2i(430, 932))
+	var fixture := await _new_game_in_viewport(PROMAX_IPHONE_SIZE)
 	var game: Node = fixture.game
 	var viewport: SubViewport = fixture.viewport
 	if not _assert_common_portrait_layout(game, viewport.size):
@@ -271,6 +301,108 @@ func _test_large_portrait() -> void:
 	if not _assert_portrait_buttons(game, viewport.size, 390.0, 52.0):
 		return
 	if not _assert_portrait_content(game, viewport.size, 390.0, 390.0):
+		return
+	_free_fixture(fixture)
+
+
+func _run_promax_portrait_case() -> void:
+	var fixture := await _new_game_in_viewport(PROMAX_IPHONE_SIZE)
+	var game: Node = fixture.game
+	var viewport: SubViewport = fixture.viewport
+	var board_frame := _find_node(game, "BoardFrame") as Control
+	var vertical_status := _find_node(game, "VerticalStatus") as MarginContainer
+	var vertical_actions := _find_node(game, "VerticalActions") as MarginContainer
+	var status_container := _find_node(game, "StatusContainer") as VBoxContainer
+	var actions_container := _find_node(game, "ActionsContainer") as VBoxContainer
+	var turn_label := _find_node(game, "TurnLabel") as Label
+	var color_label := _find_node(game, "ColorLabel") as Label
+	var move_label := _find_node(game, "MoveLabel") as Label
+	var undo_button := _find_node(game, "UndoButton") as Button
+	var new_game_button := _find_node(game, "NewGameButton") as Button
+	var back_to_menu_button := _find_node(game, "BackToMenuButton") as Button
+
+	if not _expect(board_frame != null, "BoardFrame should exist"):
+		return
+	if not _expect(vertical_status != null, "VerticalStatus should exist"):
+		return
+	if not _expect(vertical_actions != null, "VerticalActions should exist"):
+		return
+	if not _expect(status_container != null, "StatusContainer should exist"):
+		return
+	if not _expect(actions_container != null, "ActionsContainer should exist"):
+		return
+	if not _expect(turn_label != null, "TurnLabel should exist"):
+		return
+	if not _expect(color_label != null, "ColorLabel should exist"):
+		return
+	if not _expect(move_label != null, "MoveLabel should exist"):
+		return
+	if not _expect(undo_button != null, "UndoButton should exist"):
+		return
+	if not _expect(new_game_button != null, "NewGameButton should exist"):
+		return
+	if not _expect(back_to_menu_button != null, "BackToMenuButton should exist"):
+		return
+
+	if not _assert_square_size(board_frame, PROMAX_BOARD_MIN_SIZE, 408.0, "Pro Max BoardFrame"):
+		return
+	if not _assert_centered_x(board_frame, float(PROMAX_IPHONE_SIZE.x), 3.0, "Pro Max BoardFrame"):
+		return
+	if not _expect(board_frame.get_global_rect().position.x <= PHONE_SIDE_MARGIN_MAX, "Pro Max BoardFrame side margin should be near approved phone target"):
+		return
+	if not _assert_min_width(vertical_status, PROMAX_CONTENT_MIN_WIDTH, "Pro Max VerticalStatus"):
+		return
+	if not _assert_centered_x(vertical_status, float(PROMAX_IPHONE_SIZE.x), 3.0, "Pro Max VerticalStatus"):
+		return
+	if not _assert_min_width(status_container, PROMAX_CONTENT_MIN_WIDTH, "Pro Max StatusContainer"):
+		return
+	if not _assert_centered_x(status_container, float(PROMAX_IPHONE_SIZE.x), 3.0, "Pro Max StatusContainer"):
+		return
+	if not _expect(turn_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "TurnLabel should be centered in Pro Max portrait"):
+		return
+	if not _expect(color_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "ColorLabel should be centered in Pro Max portrait"):
+		return
+	if not _expect(move_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "MoveLabel should be centered in Pro Max portrait"):
+		return
+	if not _assert_font_size(turn_label, "font_size", PROMAX_STATUS_MAIN_FONT_MIN, "TurnLabel"):
+		return
+	if not _assert_min_width(vertical_actions, PROMAX_CONTENT_MIN_WIDTH, "Pro Max VerticalActions"):
+		return
+	if not _assert_centered_x(vertical_actions, float(PROMAX_IPHONE_SIZE.x), 3.0, "Pro Max VerticalActions"):
+		return
+	if not _assert_min_width(actions_container, PROMAX_CONTENT_MIN_WIDTH, "Pro Max ActionsContainer"):
+		return
+	if not _assert_centered_x(actions_container, float(PROMAX_IPHONE_SIZE.x), 3.0, "Pro Max ActionsContainer"):
+		return
+	for button: Button in [undo_button, new_game_button, back_to_menu_button]:
+		if not _assert_min_width(button, PROMAX_CONTENT_MIN_WIDTH, "%s Pro Max width" % button.name):
+			return
+		if not _expect(button.custom_minimum_size.y >= PROMAX_BUTTON_MIN_HEIGHT, "%s Pro Max minimum height should be at least %.1f" % [button.name, PROMAX_BUTTON_MIN_HEIGHT]):
+			return
+		if not _assert_min_height(button, PROMAX_BUTTON_MIN_HEIGHT, "%s Pro Max height" % button.name):
+			return
+		if not _assert_font_size(button, "font_size", PROMAX_BUTTON_FONT_MIN, "%s" % button.name):
+			return
+	for control: Control in [vertical_status, board_frame, vertical_actions, status_container, actions_container, undo_button, new_game_button, back_to_menu_button]:
+		if not _assert_inside_viewport(control, Vector2(PROMAX_IPHONE_SIZE)):
+			return
+	_free_fixture(fixture)
+
+
+func _run_promax_wide_portrait_case() -> void:
+	var fixture := await _new_game_in_viewport(PROMAX_WIDE_IPHONE_SIZE)
+	var game: Node = fixture.game
+	var board_frame := _find_node(game, "BoardFrame") as Control
+	var actions_container := _find_node(game, "ActionsContainer") as VBoxContainer
+	if not _expect(board_frame != null, "440-wide BoardFrame should exist"):
+		return
+	if not _expect(actions_container != null, "440-wide ActionsContainer should exist"):
+		return
+	if not _assert_square_size(board_frame, 404.0, 416.0, "440-wide BoardFrame"):
+		return
+	if not _assert_centered_x(board_frame, float(PROMAX_WIDE_IPHONE_SIZE.x), 3.0, "440-wide BoardFrame"):
+		return
+	if not _assert_min_width(actions_container, 404.0, "440-wide ActionsContainer"):
 		return
 	_free_fixture(fixture)
 
@@ -316,6 +448,8 @@ func _ready() -> void:
 	await _test_standard_portrait()
 	await _test_short_portrait()
 	await _test_large_portrait()
+	await _run_promax_portrait_case()
+	await _run_promax_wide_portrait_case()
 	await _test_resize_resets_portrait_chrome()
 	await _test_horizontal_ai_watch_buttons_expand()
 	print("IPHONE_PORTRAIT_UI_TASK_TESTS PASS")

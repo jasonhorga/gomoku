@@ -4,6 +4,17 @@ const _GameLogic = preload("res://scripts/game_logic.gd")
 const _PlayerController = preload("res://scripts/player/player_controller.gd")
 
 const PORTRAIT_BOARD_MIN: float = 300.0
+const PHONE_SIDE_MARGIN_RATIO: float = 0.04
+const PHONE_SIDE_MARGIN_MIN: float = 14.0
+const PHONE_SIDE_MARGIN_MAX: float = 18.0
+const PHONE_PROMAX_BOARD_TARGET_MIN: float = 396.0
+const PHONE_PROMAX_BOARD_TARGET_MAX: float = 408.0
+const PHONE_STATUS_HEIGHT_PROMAX: float = 108.0
+const PHONE_ACTION_HEIGHT_PROMAX: float = 56.0
+const PHONE_ACTION_HEIGHT_SMALL: float = 52.0
+const PHONE_ACTION_GAP: float = 10.0
+const PHONE_TOP_CHROME: float = 18.0
+const PHONE_BOTTOM_CHROME: float = 18.0
 
 @onready var horizontal_layout: HBoxContainer = %HorizontalLayout
 @onready var vertical_layout: VBoxContainer = %VerticalLayout
@@ -154,7 +165,24 @@ func _vertical_card_style_minimum_height() -> float:
 
 
 func _portrait_side_margin(width: float) -> float:
-	return clampf(width * 0.04, 14.0, 18.0)
+	return clampf(width * PHONE_SIDE_MARGIN_RATIO, PHONE_SIDE_MARGIN_MIN, PHONE_SIDE_MARGIN_MAX)
+
+
+func _portrait_content_width(width: float) -> float:
+	return roundf(width - _portrait_side_margin(width) * 2.0)
+
+
+func _portrait_action_height(width: float) -> float:
+	return PHONE_ACTION_HEIGHT_PROMAX if width >= 428.0 else PHONE_ACTION_HEIGHT_SMALL
+
+
+func _visible_action_count() -> int:
+	var visible_count: int = 0
+	for child: Node in actions_container.get_children():
+		var control := child as Control
+		if control != null and control.visible:
+			visible_count += 1
+	return visible_count
 
 
 func _sync_message_visibility() -> void:
@@ -192,22 +220,21 @@ func _apply_responsive_layout() -> void:
 	if use_vertical:
 		var viewport_width: float = float(size.x)
 		var viewport_height: float = float(size.y)
-		var side_margin: float = roundf(_portrait_side_margin(viewport_width))
-		var width_budget: float = viewport_width - side_margin * 2.0
-		var action_rows_height: float = _visible_actions_minimum_height()
-		var status_height: float = status_container.get_combined_minimum_size().y
-		var vertical_separation: float = float(vertical_layout.get_theme_constant("separation"))
-		var vertical_chrome: float = vertical_separation * 2.0
-		vertical_chrome += float(vertical_status.get_theme_constant("margin_top") + vertical_status.get_theme_constant("margin_bottom"))
-		vertical_chrome += float(vertical_actions.get_theme_constant("margin_top") + vertical_actions.get_theme_constant("margin_bottom"))
-		vertical_chrome += float(vertical_status_card_padding.get_theme_constant("margin_top") + vertical_status_card_padding.get_theme_constant("margin_bottom"))
-		vertical_chrome += float(vertical_actions_card_padding.get_theme_constant("margin_top") + vertical_actions_card_padding.get_theme_constant("margin_bottom"))
-		vertical_chrome += _vertical_card_style_minimum_height()
-		var height_budget: float = viewport_height - vertical_chrome - status_height - action_rows_height
+		var content_width: float = _portrait_content_width(viewport_width)
+		var action_rows: int = max(1, _visible_action_count())
+		var action_height: float = _portrait_action_height(viewport_width)
+		var actions_height: float = float(action_rows) * action_height + float(max(0, action_rows - 1)) * PHONE_ACTION_GAP + 20.0
+		var status_height: float = PHONE_STATUS_HEIGHT_PROMAX if viewport_width >= 428.0 else 96.0
+		var vertical_chrome: float = PHONE_TOP_CHROME + status_height + 10.0 + actions_height + PHONE_BOTTOM_CHROME
+		var width_budget: float = content_width
+		var height_budget: float = viewport_height - vertical_chrome
 		var responsive_min: float = 350.0 if viewport_width >= 390.0 else PORTRAIT_BOARD_MIN
 		board_size = minf(minf(width_budget, maxf(height_budget, responsive_min)), 620.0)
-		board_size = _fit_portrait_chrome_to_height(viewport_height, board_size, status_height, action_rows_height, responsive_min)
-	board_size = maxf(board_size, 240.0)
+		board_size = _fit_portrait_chrome_to_height(viewport_height, board_size, status_height, actions_height, responsive_min)
+		board_size = maxf(board_size, responsive_min)
+	else:
+		board_size = maxf(board_size, 320.0)
+	board_size = maxf(board_size, PORTRAIT_BOARD_MIN if use_vertical else 320.0)
 
 	board_frame.custom_minimum_size = Vector2(board_size, board_size)
 	if "board_pixel_size" in board:
@@ -215,12 +242,21 @@ func _apply_responsive_layout() -> void:
 	board.queue_redraw()
 
 	if use_vertical:
+		var content_width: float = _portrait_content_width(float(size.x))
+		vertical_status.custom_minimum_size.x = content_width
+		vertical_actions.custom_minimum_size.x = content_width
+		status_container.custom_minimum_size.x = content_width
+		actions_container.custom_minimum_size.x = content_width
 		_reparent_if_needed(status_container, vertical_status_card_padding)
 		_reparent_if_needed(board_frame, vertical_board_host)
 		_reparent_if_needed(actions_container, vertical_actions_card_padding)
 		spacer.visible = false
 		_fit_portrait_layout()
 	else:
+		vertical_status.custom_minimum_size.x = 0.0
+		vertical_actions.custom_minimum_size.x = 0.0
+		status_container.custom_minimum_size.x = 0.0
+		actions_container.custom_minimum_size.x = 0.0
 		_reparent_if_needed(status_container, horizontal_panel_content, 0)
 		_reparent_if_needed(board_frame, horizontal_board_host)
 		_reparent_if_needed(actions_container, horizontal_panel_content)
@@ -279,21 +315,25 @@ func _make_button_style(bg: Color, border: Color) -> StyleBoxFlat:
 
 
 func _apply_gameplay_readability(use_vertical: bool) -> void:
-	var viewport_height: float = float(get_viewport_rect().size.y)
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var viewport_width: float = float(viewport_size.x)
+	var viewport_height: float = float(viewport_size.y)
 	var compact_portrait: bool = use_vertical and viewport_height < 720.0
-	var turn_size: int = 24 if compact_portrait else (32 if use_vertical else 24)
-	var color_size: int = 16 if compact_portrait else (20 if use_vertical else 18)
-	var detail_size: int = 13 if compact_portrait else 16
+	var is_large_phone: bool = use_vertical and viewport_width >= 428.0
+	var status_font_size: int = 24 if compact_portrait else (32 if use_vertical else 24)
+	var color_font_size: int = 16 if compact_portrait else (20 if use_vertical else 18)
+	var detail_font_size: int = 13 if compact_portrait else 16
+	var message_font_size: int = 16 if is_large_phone else detail_font_size
 	var action_font_size: int = 17 if compact_portrait else (20 if use_vertical else 18)
-	var action_height: float = 40.0 if compact_portrait else 52.0
+	var action_height: float = _portrait_action_height(viewport_width) if use_vertical else 52.0
 	var fill_horizontal: int = Control.SIZE_EXPAND_FILL if use_vertical else Control.SIZE_FILL
 	var ai_watch_fill_horizontal: int = Control.SIZE_EXPAND_FILL
 	var label_alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER if use_vertical else HORIZONTAL_ALIGNMENT_LEFT
 
-	turn_label.add_theme_font_size_override("font_size", turn_size)
-	color_label.add_theme_font_size_override("font_size", color_size)
-	move_label.add_theme_font_size_override("font_size", detail_size)
-	message_label.add_theme_font_size_override("font_size", detail_size)
+	turn_label.add_theme_font_size_override("font_size", status_font_size)
+	color_label.add_theme_font_size_override("font_size", color_font_size)
+	move_label.add_theme_font_size_override("font_size", detail_font_size)
+	message_label.add_theme_font_size_override("font_size", message_font_size)
 	turn_label.horizontal_alignment = label_alignment
 	color_label.horizontal_alignment = label_alignment
 	move_label.horizontal_alignment = label_alignment
@@ -313,7 +353,7 @@ func _apply_gameplay_readability(use_vertical: bool) -> void:
 		button.add_theme_font_size_override("font_size", action_font_size)
 	for button: Button in [pause_button, step_button, auto_button]:
 		button.custom_minimum_size.y = action_height
-		button.size_flags_horizontal = ai_watch_fill_horizontal
+		button.size_flags_horizontal = ai_watch_fill_horizontal if not use_vertical else Control.SIZE_EXPAND_FILL
 		button.add_theme_font_size_override("font_size", action_font_size)
 
 	var styled_buttons: Array[Button] = [undo_button, pause_button, step_button, auto_button, new_game_button, back_to_menu_button, resign_button]
@@ -348,13 +388,43 @@ func _fit_portrait_layout() -> void:
 		return
 	var viewport_width: float = float(get_viewport_rect().size.x)
 	var responsive_min: float = 350.0 if viewport_width >= 390.0 else PORTRAIT_BOARD_MIN
-	var board_size: float = maxf(board_frame.custom_minimum_size.x - overflow, responsive_min)
-	if board_size >= board_frame.custom_minimum_size.x:
+	var current_board_size: float = board_frame.custom_minimum_size.x
+	var board_reduction: float = minf(overflow, maxf(current_board_size - responsive_min, 0.0))
+	var board_size: float = current_board_size - board_reduction
+	if board_size < current_board_size:
+		board_frame.custom_minimum_size = Vector2(board_size, board_size)
+		if "board_pixel_size" in board:
+			board.board_pixel_size = board_size
+		board.queue_redraw()
+	var remaining_overflow: float = overflow - board_reduction
+	if remaining_overflow > 0.0:
+		_compress_portrait_chrome_for_overflow(remaining_overflow)
+
+
+func _compress_portrait_chrome_for_overflow(overflow: float) -> void:
+	var vertical_separation: float = float(vertical_layout.get_theme_constant("separation"))
+	var status_top: float = float(vertical_status.get_theme_constant("margin_top"))
+	var status_bottom: float = float(vertical_status.get_theme_constant("margin_bottom"))
+	var actions_top: float = float(vertical_actions.get_theme_constant("margin_top"))
+	var actions_bottom: float = float(vertical_actions.get_theme_constant("margin_bottom"))
+	var status_padding_top: float = float(vertical_status_card_padding.get_theme_constant("margin_top"))
+	var status_padding_bottom: float = float(vertical_status_card_padding.get_theme_constant("margin_bottom"))
+	var actions_padding_top: float = float(vertical_actions_card_padding.get_theme_constant("margin_top"))
+	var actions_padding_bottom: float = float(vertical_actions_card_padding.get_theme_constant("margin_bottom"))
+	var reducible: float = vertical_separation * 2.0 + status_top + status_bottom + actions_top + actions_bottom
+	reducible += status_padding_top + status_padding_bottom + actions_padding_top + actions_padding_bottom
+	if reducible <= 0.0:
 		return
-	board_frame.custom_minimum_size = Vector2(board_size, board_size)
-	if "board_pixel_size" in board:
-		board.board_pixel_size = board_size
-	board.queue_redraw()
+	var scale: float = maxf((reducible - overflow - 2.0) / reducible, 0.0)
+	vertical_layout.add_theme_constant_override("separation", int(roundf(vertical_separation * scale)))
+	vertical_status.add_theme_constant_override("margin_top", int(roundf(status_top * scale)))
+	vertical_status.add_theme_constant_override("margin_bottom", int(roundf(status_bottom * scale)))
+	vertical_actions.add_theme_constant_override("margin_top", int(roundf(actions_top * scale)))
+	vertical_actions.add_theme_constant_override("margin_bottom", int(roundf(actions_bottom * scale)))
+	vertical_status_card_padding.add_theme_constant_override("margin_top", int(roundf(status_padding_top * scale)))
+	vertical_status_card_padding.add_theme_constant_override("margin_bottom", int(roundf(status_padding_bottom * scale)))
+	vertical_actions_card_padding.add_theme_constant_override("margin_top", int(roundf(actions_padding_top * scale)))
+	vertical_actions_card_padding.add_theme_constant_override("margin_bottom", int(roundf(actions_padding_bottom * scale)))
 
 
 func _reparent_if_needed(node: Node, new_parent: Node, index: int = -1) -> void:
