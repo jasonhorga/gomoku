@@ -7,12 +7,20 @@ const LEVEL_NAMES: Array[String] = ["L1 随机 ★", "L2 启发 ★★", "L3 搜
 const SPEED_NAMES: Array[String] = ["即时", "快", "普通", "慢"]
 const SPEED_VALUES: Array[float] = [0.0, 0.1, 0.5, 2.0]
 
+@onready var lab_container: VBoxContainer = $VBoxContainer
+@onready var title_label: Label = $VBoxContainer/TitleLabel
+@onready var match_row: BoxContainer = $VBoxContainer/MatchRow
 @onready var black_level: OptionButton = %BlackLevel
 @onready var white_level: OptionButton = %WhiteLevel
+@onready var speed_row: HBoxContainer = $VBoxContainer/SpeedRow
 @onready var speed_slider: HSlider = %SpeedSlider
 @onready var speed_text: Label = %SpeedText
-@onready var rules_selector = %RulesSelector
+@onready var rules_selector: Control = %RulesSelector
+@onready var action_row: BoxContainer = $VBoxContainer/ActionRow
+@onready var watch_button: Button = %WatchButton
+@onready var run_batch_button: Button = %RunBatchButton
 @onready var replay_last_batch_button: Button = %ReplayLastBatchButton
+@onready var back_button: Button = %BackButton
 @onready var stats_label: Label = %StatsLabel
 
 var batch_running: bool = false
@@ -32,12 +40,14 @@ func _ready() -> void:
 	white_level.selected = 4  # L5 MCTS
 
 	speed_slider.value_changed.connect(_on_speed_changed)
-	%WatchButton.pressed.connect(_on_watch_pressed)
-	%RunBatchButton.pressed.connect(_on_run_batch_pressed)
+	watch_button.pressed.connect(_on_watch_pressed)
+	run_batch_button.pressed.connect(_on_run_batch_pressed)
 	replay_last_batch_button.pressed.connect(_on_replay_last_batch_pressed)
-	%BackButton.pressed.connect(_on_back_pressed)
+	back_button.pressed.connect(_on_back_pressed)
+	get_viewport().size_changed.connect(_apply_phone_layout)
 
 	_update_stats()
+	_apply_phone_layout()
 
 
 func _on_speed_changed(val: float) -> void:
@@ -78,7 +88,7 @@ func _on_run_batch_pressed() -> void:
 	batch_use_renju_rules = rules_selector.forbidden_enabled
 	last_batch_record_path = ""
 	replay_last_batch_button.disabled = true
-	%RunBatchButton.disabled = true
+	run_batch_button.disabled = true
 	rules_selector.set_disabled(true)
 	stats_label.text = "批量进度：0/%d..." % batch_total
 	_run_next_batch_game()
@@ -87,7 +97,7 @@ func _on_run_batch_pressed() -> void:
 func _run_next_batch_game() -> void:
 	if batch_done >= batch_total:
 		batch_running = false
-		%RunBatchButton.disabled = false
+		run_batch_button.disabled = false
 		rules_selector.set_disabled(false)
 		if not last_batch_record_path.is_empty():
 			replay_last_batch_button.disabled = false
@@ -203,3 +213,103 @@ func _on_replay_last_batch_pressed() -> void:
 
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+
+
+func _apply_phone_layout() -> void:
+	if not is_node_ready():
+		return
+	if not _is_phone_portrait():
+		_restore_default_layout()
+		return
+
+	var content_width := _phone_content_width()
+	lab_container.set_anchors_preset(Control.PRESET_CENTER)
+	lab_container.custom_minimum_size = Vector2(content_width, 0.0)
+	lab_container.offset_left = -content_width * 0.5
+	lab_container.offset_right = content_width * 0.5
+	lab_container.offset_top = -350.0
+	lab_container.offset_bottom = 350.0
+	var compact := get_viewport_rect().size.x < 428.0
+	lab_container.add_theme_constant_override("separation", 6 if compact else 10)
+
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.add_theme_font_size_override("font_size", 26 if compact else 30)
+	match_row.vertical = true
+	match_row.custom_minimum_size.x = content_width
+	match_row.add_theme_constant_override("separation", 6 if compact else 8)
+	$VBoxContainer/MatchRow/BlackLabel.visible = false
+	$VBoxContainer/MatchRow/WhiteLabel.visible = false
+	black_level.custom_minimum_size.x = content_width
+	white_level.custom_minimum_size.x = content_width
+	black_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	white_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	speed_row.custom_minimum_size.x = content_width
+	rules_selector.custom_minimum_size.x = content_width
+	action_row.vertical = true
+	action_row.custom_minimum_size.x = content_width
+	action_row.add_theme_constant_override("separation", 6 if compact else 10)
+	_apply_phone_button(watch_button, 19)
+	_apply_phone_button(run_batch_button, 19)
+	_apply_phone_button(replay_last_batch_button, 18)
+	_apply_phone_button(back_button, 18)
+	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stats_label.add_theme_font_size_override("font_size", 12 if compact else 14)
+
+
+func _restore_default_layout() -> void:
+	lab_container.set_anchors_preset(Control.PRESET_CENTER)
+	lab_container.custom_minimum_size = Vector2.ZERO
+	lab_container.offset_left = -280.0
+	lab_container.offset_top = -320.0
+	lab_container.offset_right = 280.0
+	lab_container.offset_bottom = 320.0
+	lab_container.add_theme_constant_override("separation", 12)
+	title_label.add_theme_font_size_override("font_size", 32)
+	match_row.vertical = false
+	match_row.custom_minimum_size = Vector2.ZERO
+	match_row.add_theme_constant_override("separation", 10)
+	$VBoxContainer/MatchRow/BlackLabel.visible = true
+	$VBoxContainer/MatchRow/WhiteLabel.visible = true
+	black_level.custom_minimum_size = Vector2.ZERO
+	white_level.custom_minimum_size = Vector2.ZERO
+	black_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	white_level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	speed_row.custom_minimum_size = Vector2.ZERO
+	rules_selector.custom_minimum_size.x = 0.0
+	action_row.vertical = false
+	action_row.custom_minimum_size = Vector2.ZERO
+	action_row.add_theme_constant_override("separation", 10)
+	watch_button.custom_minimum_size = Vector2(0.0, 44.0)
+	watch_button.add_theme_font_size_override("font_size", 16)
+	run_batch_button.custom_minimum_size = Vector2(0.0, 44.0)
+	run_batch_button.add_theme_font_size_override("font_size", 16)
+	replay_last_batch_button.custom_minimum_size = Vector2(0.0, 44.0)
+	replay_last_batch_button.add_theme_font_size_override("font_size", 16)
+	back_button.custom_minimum_size = Vector2(0.0, 40.0)
+	back_button.add_theme_font_size_override("font_size", 16)
+	stats_label.add_theme_font_size_override("font_size", 14)
+
+
+func _is_phone_portrait() -> bool:
+	var viewport_size := get_viewport_rect().size
+	return viewport_size.y > viewport_size.x and viewport_size.x <= 700.0
+
+
+func _phone_side_margin(width: float) -> float:
+	return clampf(width * 0.04, 14.0, 17.0)
+
+
+func _phone_content_width() -> float:
+	var width := get_viewport_rect().size.x
+	return width - _phone_side_margin(width) * 2.0
+
+
+func _phone_primary_button_height() -> float:
+	return 60.0 if get_viewport_rect().size.x >= 428.0 else 48.0
+
+
+func _apply_phone_button(button: Button, font_size: int = 19) -> void:
+	button.custom_minimum_size = Vector2(_phone_content_width(), _phone_primary_button_height())
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var applied_font_size: int = font_size if get_viewport_rect().size.x >= 428.0 else mini(font_size, 16)
+	button.add_theme_font_size_override("font_size", applied_font_size)

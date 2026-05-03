@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
-**Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** BLOCKED_ON_UI_DESIGN_APPROVAL
-**Workflow:** brainstorming + design-before-implementation
-**Branch:** `main`
+**Plan:** `docs/superpowers/plans/2026-05-03-promax-portrait-ui.md`
+**Status:** REVIEWING_PROMAX_PORTRAIT_UI_BRANCH
+**Workflow:** subagent-driven-development
+**Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-03 03:15 UTC
-**Last known commit:** `1e811c9`
-**Current task:** User provided device screenshots in `layout/` showing the shipped TestFlight UI is still unacceptable despite run `25268222929` succeeding and IPA orientation verifying correctly.
-**Next action:** Review `layout/*.jpeg`, create a concrete iPhone portrait gameplay UI mockup/design for user approval, and do not implement further code until the user approves the design. Preserve worktree until validation or explicit cleanup approval.
+**Last updated:** 2026-05-03 06:30 UTC
+**Last known commit:** `5d2c689`
+**Current task:** Task 5 — Final review for Pro Max portrait UI branch.
+**Next action:** Request final code review; if approved, commit the progress verification checkpoint and follow finishing branch flow while preserving the worktree.
 
 ---
 
@@ -32,18 +32,22 @@
 | Task 3 — Apply selector to AI Lab and rules copy | COMPLETE | `918b669` | Focused AI Lab/HUD test and regressions passed during task; reviews approved. | User-facing rules copy is Chinese-only. |
 | Task 4 — Fix iPhone portrait activation | COMPLETE | `fe1a965`, `d31ed17` | `tools/test_game_layout_task4.tscn` PASS; parse check ran with known Linux GDExtension warning; spec and quality reviews approved. | Complete. |
 | Task 5 — Refresh font subset and final local verification | COMPLETE | none | Font check PASS; focused tests PASS; regressions PASS; no Renju matches; token scan no matches; `git diff --check` PASS after progress-file whitespace fix; spec and quality reviews approved. | No font commit needed. |
+| Pro Max portrait UI Task 1 — gameplay RED tests | COMPLETE | none | RED run produced intended Pro Max gameplay assertion failure; diff --check passed. | Primary validation target is 430×932 / 440×956, with 375/390 compatibility. |
+| Pro Max portrait UI Task 2 — gameplay layout implementation | COMPLETE | `544edb1` | Focused GREEN and regressions passed; spec/code-quality reviews approved. | `scenes/game/game.gd` now uses content-width portrait rules for large iPhones while preserving small-phone containment and horizontal layout. |
+| Pro Max portrait UI Task 3 — menu/setup RED tests | COMPLETE | none | RED run still produces intended menu/setup phone layout assertion failure after review fixes; diff --check passed. | Code-quality fixes: containment now respects `is_visible_in_tree()` and Task 4 plan stacks color buttons full-width. |
+| Pro Max portrait UI Task 4 — menu/setup layout implementation | COMPLETE | `5d2c689` | Focused menu/setup test, setup regressions, resize RED/GREEN checks, code reviews, and diff --check passed. | Full-width phone portrait controls implemented without navigation/rules behavior changes; horizontal resize restoration covered. |
 
 ---
 
 ## Current Handoff
 
-**Last completed safe point:** TestFlight run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`; downloaded artifact `/tmp/gomoku-testflight-25268222929/gomoku-main/gomoku.ipa` and verified final plist orientation arrays.
+**Last completed safe point:** Commit `5d2c689` contains the Pro Max portrait menu/setup layout slice; final branch verification and final review are recorded in this file.
 
-**In progress:** User screenshots in `layout/` show current UI is still visually unacceptable: main menu/setup screens are tiny and centered in a mostly empty portrait viewport; gameplay board/status/actions are poorly placed. User requested a proper design/mockup for confirmation before further implementation.
+**In progress:** Final progress checkpoint is unstaged and should be committed before finishing branch flow.
 
-**Blockers/questions:** Blocked on design approval. Do not continue implementation from the current code-first approach. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes plus untracked `layout/` screenshots; never use blanket staging.
+**Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain untouched. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Produce a concrete iPhone portrait UI mockup/design based on `layout/*.jpeg` and ask for user approval; no further code changes until approved.
+**Next exact action:** Commit this progress checkpoint, rerun token scan immediately before any public push, then follow finishing branch flow while preserving the worktree until device validation or explicit cleanup approval.
 
 ---
 
@@ -80,6 +84,20 @@
 | iPhone portrait redesign Task 4 | Implementation | VERIFIED | subagent `a221509556d69d591` | Vertical-only card/button StyleBox polish added with RED/GREEN style assertions; focused portrait, AI-watch, parse smoke, Renju scan, and diff --check passed. | Proceed to spec compliance review. |
 | iPhone portrait redesign Task 4 | Spec compliance | APPROVED | subagent `a5348a397bc0f2207` | Style helpers and vertical-only card/button overrides meet requirements; horizontal override clearing and non-brittle style tests present. | Proceed to code quality review. |
 | iPhone portrait redesign Task 4 disabled-button follow-up | Implementation | VERIFIED | current agent | Added RED/GREEN coverage for portrait `UndoButton.disabled` style override and horizontal clearing, then added vertical-only disabled StyleBox to all action buttons. | No commit made. |
+| Pro Max portrait UI Task 1 | Spec compliance | APPROVED | subagent `aefbabf265ede33a6` | Pro Max plan exists in worktree, progress points to it, and gameplay RED tests meet Task 1 requirements. | Proceed to code quality review. |
+| Pro Max portrait UI Task 1 | Code quality | APPROVED | subagent `a68edcf3f9fcff377` | RED failure is meaningful; no critical/important issues. Minor cleanup/checklist notes are non-blocking. | Proceed to Task 2 implementation. |
+| Pro Max portrait UI Task 2 | Spec compliance | APPROVED | subagent `a84753ceda955437f` | Gameplay layout meets Pro Max sizing, small-phone containment, horizontal preservation, and verification requirements. | Proceed to code quality review. |
+| Pro Max portrait UI Task 2 | Code quality | APPROVED | subagent `abaf0933706e3bb21` | No critical/important issues. Minor stale plan checklist and unused constant notes are non-blocking. | Commit gameplay slice, then proceed to Task 3. |
+| Pro Max menu/setup RED Task 3 | Code quality fix | VERIFIED | current agent | Fixed Important findings: visible-control traversal now stops at hidden Control parents via `is_visible_in_tree()`, and Task 4 AI setup plan uses full-width stacked color buttons. | RED remains meaningful; no production layout changes. |
+| Pro Max menu/setup RED Task 3 remaining review fix | VERIFIED | current agent | Added `OnlineButton`/`QuitButton` to main-menu RED coverage; corrected Task 4 AI Lab replay button and main-menu status label paths. | RED remains meaningful; no production layout changes. |
+| Pro Max menu/setup RED Task 3 | Spec compliance | APPROVED | subagent `abc544e3718a8be41` | Focused menu/setup RED test meets Task 3 requirements and records intended failure evidence. | Proceed to code quality review. |
+| Pro Max menu/setup RED Task 3 | Code quality | APPROVED_AFTER_FIX | subagent `a4e85a780c8c672c0` | Initial hidden-parent traversal, color-button plan mismatch, coverage, and path issues fixed; no remaining findings. | Proceed to Task 4 implementation. |
+| Pro Max menu/setup Task 4 | Spec compliance | APPROVED | subagent `aa85d3ff9c02ee909` | Main menu, local setup, AI setup, AI Lab phone portrait sizing meets approved target; no Critical/Important findings. | Proceed to code-quality review. |
+| Pro Max menu/setup Task 4 | Code quality | CHANGES_REQUIRED | subagent `a0a91c463c8902a59` | Important: portrait layout mutations are not fully restored when resizing back to horizontal. | Added RED resize-restoration test, fixed cleanup, reran focused/regression tests. |
+| Pro Max menu/setup Task 4 review fix | Implementation | VERIFIED | current agent | RED reproduced stale phone minimum widths after portrait-to-horizontal resize; GREEN passes after restoring mutated controls in non-phone branches. | Re-review found remaining AI setup size-flag/visible-stack gap. |
+| Pro Max menu/setup Task 4 review fix | Code quality re-review | CHANGES_REQUIRED | subagent `aeb4e4322df1d4380` | Important: AI setup still leaves portrait button `SIZE_EXPAND_FILL` and visible empty phone stacks after horizontal resize. | Strengthened test and reset AI setup size flags/phone stack visibility. |
+| Pro Max menu/setup Task 4 AI setup restore fix | Implementation | VERIFIED | current agent | RED failed on AI setup button `SIZE_EXPAND_FILL` and visible phone stacks; GREEN passes after restoring flags and hiding phone stacks. | Targeted code-quality re-review approved. |
+| Pro Max menu/setup Task 4 AI setup restore fix | Code quality re-review | APPROVED | subagent `a2c639d63f121781e` | No Critical/Important findings; reran focused menu test, setup rules regression, and diff check. | Proceed to final Task 4 verification and commit intended files only. |
 
 ---
 
@@ -128,14 +146,52 @@
 | 2026-05-03 Task 4 vertical-only polish | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
 | 2026-05-03 Task 4 vertical-only polish | `grep -R "Renju" -n /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/scenes /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/project.godot` | PASS | No matches; exit code 1 expected. |
 | 2026-05-03 Task 4 vertical-only polish | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
-| 2026-05-03 final merge verification | Merged main focused/regression suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `AI_WATCH_TASK8_TESTS`; merge diff whitespace and token scan passed. |
-| 2026-05-03 TestFlight redesign | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25268222929` | PASS | Run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`. |
-| 2026-05-03 TestFlight redesign | Downloaded final IPA artifact and inspected `Payload/gomoku.app/Info.plist` | PASS | `UIDeviceFamily=[1,2]`; iPhone `['UIInterfaceOrientationPortrait']`; iPad `['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']`. |
-| 2026-05-03 device screenshot review | Read `layout/16EF85C5-B6B1-43DE-B1DE-5CD057BA5CB7_4_5005_c.jpeg`, `layout/340F7D35-03B7-4FE7-908F-F81D3D80BBED_4_5005_c.jpeg`, `layout/F54FB2C5-227B-4034-99D8-7010722755D6_4_5005_c.jpeg` | FAIL FOUND | Portrait UI remains unacceptable: menu/setup content tiny and centered in empty viewport; gameplay board/status/actions placement still poor. Need design/mockup approval before more code. |
 | 2026-05-03 Task 4 disabled-button follow-up RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new assertion failed: `UndoButton should have a portrait disabled style override`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max gameplay RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended Pro Max portrait assertion failed before implementation: `UndoButton Pro Max minimum height should be at least 54.0`. Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max gameplay RED | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max gameplay layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max gameplay layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_game_layout_task4.tscn` | PASS | `GAME_LAYOUT_TASK4_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max gameplay layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max gameplay layout | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd scenes/game/game.tscn tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md docs/superpowers/plans/2026-05-03-promax-portrait-ui.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | RED FAIL | Intended phone menu/setup layout assertion failed before implementation: `res://scenes/local_setup/local_setup.tscn StartButton outside (430, 932): [P: (-5, 562), S: (440, 62)]`. Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup RED | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- tools/test_iphone_portrait_menu_ui_task.gd tools/test_iphone_portrait_menu_ui_task.tscn docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup review fix | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | RED FAIL | First exact failure after review fix: `res://scenes/local_setup/local_setup.tscn StartButton outside (430, 932): [P: (-5, 562), S: (440, 62)]`. Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup review fix | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- tools/test_iphone_portrait_menu_ui_task.gd tools/test_iphone_portrait_menu_ui_task.tscn docs/superpowers/progress/offline-ux-polish-progress.md docs/superpowers/plans/2026-05-03-promax-portrait-ui.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_rules_card_selector_task1.tscn` | PASS | `RULES_CARD_SELECTOR_TASK1_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_setup_rules_task2.tscn` | PASS | `SETUP_RULES_TASK2_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup layout | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_lab_rules_task3.tscn` | PASS | `AI_LAB_RULES_TASK3_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup layout | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/main_menu scenes/local_setup scenes/ai_setup scenes/ai_lab tools/test_iphone_portrait_menu_ui_task.gd tools/test_iphone_portrait_menu_ui_task.tscn docs/superpowers/progress/offline-ux-polish-progress.md docs/superpowers/plans/2026-05-03-promax-portrait-ui.md` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup resize restoration RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | RED FAIL | Intended failures showed phone `custom_minimum_size.x=396` persisted after resizing to 932×430; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup resize restoration GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS PASS` after restoring portrait mutations in non-phone branches; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup resize restoration | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_rules_card_selector_task1.tscn` | PASS | `RULES_CARD_SELECTOR_TASK1_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup resize restoration | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_setup_rules_task2.tscn` | PASS | `SETUP_RULES_TASK2_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup resize restoration | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_lab_rules_task3.tscn` | PASS | `AI_LAB_RULES_TASK3_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup resize restoration | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup AI restore RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | RED FAIL | Intended failures: AI setup buttons kept `SIZE_EXPAND_FILL`, and `PhoneColorButtons`/`PhoneBottomButtons` remained visible after horizontal resize. |
+| 2026-05-03 Pro Max menu/setup AI restore GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS PASS` with stronger AI setup restore assertions; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup AI restore | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_setup_rules_task2.tscn` | PASS | `SETUP_RULES_TASK2_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup AI restore | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max menu/setup final Task 4 verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup final Task 4 verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_rules_card_selector_task1.tscn` | PASS | `RULES_CARD_SELECTOR_TASK1_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup final Task 4 verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_setup_rules_task2.tscn` | PASS | `SETUP_RULES_TASK2_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup final Task 4 verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_lab_rules_task3.tscn` | PASS | `AI_LAB_RULES_TASK3_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max menu/setup final Task 4 verification | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_menu_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_game_layout_task4.tscn` | PASS | `GAME_LAYOUT_TASK4_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_undo_task5.tscn` | PASS | `UNDO_TASK5_TESTS PASS`; expected invalid-history errors appear in output. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_replay_task6.tscn` | PASS | `REPLAY_TASK6_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_rules_card_selector_task1.tscn` | PASS | `RULES_CARD_SELECTOR_TASK1_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_setup_rules_task2.tscn` | PASS | `SETUP_RULES_TASK2_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_lab_rules_task3.tscn` | PASS | `AI_LAB_RULES_TASK3_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `grep -R "Renju" -n /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/scenes /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/project.godot` | PASS | No matches; exit code 1 expected. |
+| 2026-05-03 Pro Max portrait branch final verification | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check` | PASS | No whitespace errors. |
+| 2026-05-03 Pro Max portrait branch final verification | token-pattern scan over `git diff main...HEAD` | PASS | No matches; grep exit code 1 expected. |
 
 ---
 
@@ -170,7 +226,7 @@
 - `scenes/ai_lab/ai_lab.tscn` — AI Lab selector.
 - `tools/test_ai_lab_rules_task3.gd` — AI Lab/HUD copy test.
 - `tools/test_ai_lab_rules_task3.tscn` — AI Lab test scene.
-- `scenes/game/game.gd` — Chinese-only HUD suffix and viewport-based vertical layout helper.
+- `scenes/game/game.gd` — Chinese-only HUD suffix, viewport-based vertical layout helper, and WIP Pro Max-first gameplay portrait content-width sizing.
 - `export_presets.cfg` — iOS portrait orientation booleans.
 - `tools/test_game_layout_task4.gd` — layout predicate test.
 - `tools/test_game_layout_task4.tscn` — layout test scene.
@@ -179,5 +235,13 @@
 - `ios_plugin/scripts/patch_ios_orientation.py` — patches/validates iPhone portrait and iPad landscape plist entries.
 - `ios_plugin/tests/test_patch_ios_orientation.py` — plist patch regression tests.
 - `tools/test_ios_orientation_config.py` — project/workflow orientation configuration tests.
-- `tools/test_iphone_portrait_ui_task.gd` — WIP focused iPhone portrait gameplay readability test.
-- `tools/test_iphone_portrait_ui_task.tscn` — WIP focused iPhone portrait gameplay readability test scene.
+- `tools/test_iphone_portrait_ui_task.gd` — focused iPhone portrait gameplay readability test.
+- `tools/test_iphone_portrait_ui_task.tscn` — focused iPhone portrait gameplay readability test scene.
+- `tools/test_iphone_portrait_menu_ui_task.gd` — focused iPhone portrait menu/setup layout test.
+- `tools/test_iphone_portrait_menu_ui_task.tscn` — focused iPhone portrait menu/setup test scene.
+- `scenes/main_menu/main_menu.gd` — phone portrait main-menu content-width and button sizing.
+- `scenes/local_setup/local_setup.gd` — phone portrait local setup content-width/rules/button sizing.
+- `scenes/ai_setup/ai_setup.gd` — phone portrait AI setup content-width, stacked color/start/back buttons, and compact small-phone sizing.
+- `scenes/ai_setup/ai_setup.tscn` — keeps stable bottom button path while script manages portrait stacking.
+- `scenes/ai_lab/ai_lab.gd` — phone portrait AI Lab content-width, stacked action buttons/selectors, and compact small-phone sizing.
+- `scenes/ai_lab/ai_lab.tscn` — uses script-managed flexible row hosts for portrait stacking.
