@@ -184,10 +184,23 @@ theme_override_constants/separation = 8
 [node name="VerticalStatus" type="MarginContainer" parent="VerticalLayout"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/margin_left = 12
+theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
+theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 0
+
+[node name="VerticalStatusCard" type="PanelContainer" parent="VerticalLayout/VerticalStatus"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VerticalStatusCardPadding" type="MarginContainer" parent="VerticalLayout/VerticalStatus/VerticalStatusCard"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 10
 
 [node name="VerticalBoardHost" type="CenterContainer" parent="VerticalLayout"]
 unique_name_in_owner = true
@@ -197,10 +210,23 @@ size_flags_vertical = 3
 [node name="VerticalActions" type="MarginContainer" parent="VerticalLayout"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/margin_left = 12
+theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 0
-theme_override_constants/margin_right = 12
+theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 12
+
+[node name="VerticalActionsCard" type="PanelContainer" parent="VerticalLayout/VerticalActions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VerticalActionsCardPadding" type="MarginContainer" parent="VerticalLayout/VerticalActions/VerticalActionsCard"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 10
 
 [node name="GameOverPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true

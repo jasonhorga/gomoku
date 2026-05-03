@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** TESTFLIGHT_SUCCEEDED_PENDING_DEVICE_VALIDATION
-**Workflow:** systematic-debugging + test-driven-development
-**Branch:** `main`
+**Status:** READY_TO_COMMIT_IPHONE_PORTRAIT_UI_REDESIGN
+**Workflow:** subagent-driven-development + test-driven-development
+**Branch:** `offline-ux-polish`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-02 16:14 UTC
-**Last known commit:** `3aa7054`
-**Current task:** TestFlight run `25256049033` succeeded for iPhone portrait gameplay UI sizing fix.
-**Next action:** Inspect/verify final IPA artifacts if available, then ask user to validate iPhone portrait gameplay sizing plus iPad/macOS layout on devices.
+**Last updated:** 2026-05-03 03:05 UTC
+**Last known commit:** `38414c8`
+**Current task:** iPhone portrait gameplay UI redesign locally verified after Task 4 disabled-state polish follow-up.
+**Next action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight; preserve worktree until device validation or explicit cleanup approval.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** TestFlight run `25253363826` for commit `4a03b9b` succeeded, downloaded final IPA plist verified iPhone portrait plus iPad landscape arrays, and user confirmed the iPhone app is now portrait.
+**Last completed safe point:** Final local verification passed after Task 4 disabled-button follow-up. Portrait gameplay action buttons now receive vertical-only normal/hover/pressed/disabled StyleBox overrides, horizontal layout clears them, and extended portrait tests cover 390×844, 375×667, 430×932, resize reset, and AI-watch horizontal sizing.
 
-**In progress:** TestFlight workflow_dispatch run `25256049033` completed successfully for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27`. Final durable checkpoint commit is `3aa7054`.
+**In progress:** Ready to commit intended files only: `docs/superpowers/progress/offline-ux-polish-progress.md`, `scenes/game/game.gd`, `scenes/game/game.tscn`, and `tools/test_iphone_portrait_ui_task.gd`.
 
 **Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Inspect/verify final IPA artifacts from run `25256049033` if available, then ask user to validate iPhone portrait gameplay sizing plus iPad/macOS layout on devices.
+**Next exact action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight; preserve worktree until device validation or explicit cleanup approval.
 
 ---
 
@@ -63,6 +63,23 @@
 | Task 5 | Code quality | APPROVED | subagent `a58fb984641340b37` | Verification evidence sufficient; no font files changed; `.superpowers/` is not in branch diff but remains untracked scratch. | Stage only intended files; never use blanket staging. |
 | Whole branch | Final code review | READY_WITH_NOTES | subagent `afac91ce03990545e` | No merge-blocking issues; minor stale progress metadata fixed after review. | Proceed to finishing/merge flow. |
 | iPhone portrait UI sizing | Code quality | APPROVED_AFTER_TEST_STRENGTHENING | subagent `af2fdc8b2e6d73128` | No blockers. Important suggestion: assert rendered sizes/viewport containment, not just properties. | Strengthened test; found and fixed vertical height overflow. |
+| iPhone portrait redesign Task 1 | Spec compliance | APPROVED | subagent `a9c295e3f24e1a808` | Strengthened 390×844 test covers board/status/actions width and centering, label centering, existing assertions, and meaningful RED failure. | Proceed to code quality review. |
+| iPhone portrait redesign Task 1 | Code quality | APPROVED | subagent `ab76feb69754e1a22` | No critical/important issues; minor notes about explicit missing-node failures and pass-only cleanup are non-blocking. | Proceed to Task 2 vertical card hosts. |
+| iPhone portrait redesign Task 2 | Spec compliance | APPROVED | subagent `a0846c20b762e1eb3` | Vertical status/actions card hosts and padding added; onready refs and vertical reparenting match plan; horizontal branch unchanged. | Proceed to code quality review. |
+| iPhone portrait redesign Task 2 | Code quality | CHANGES_REQUIRED | subagent `a0734fabbcc1f5d72` | Card padding leaves only 338–342px inner width on 390px viewport, conflicting with full-width status/actions/button assertions after board width is fixed. | Reduce vertical-only margins/padding so inner content can still reach at least 350px. |
+| iPhone portrait redesign Task 2 | Code quality re-review | APPROVED | subagent `a66df8d5061089054` | Padding fix leaves ~366px inner budget on 390px viewport; no critical/important issues. Minor stale handoff note addressed. | Proceed to Task 3 dynamic board sizing and full-width controls. |
+| iPhone portrait redesign Task 3 | Spec compliance | APPROVED | subagent `a58632a233aba67a1` | Focused 390×844 test and parse smoke passed; dynamic board sizing, centered labels, full-width controls, and message-label height reclamation meet spec. | Proceed to code quality review. |
+| iPhone portrait redesign Task 3 | Code quality | CHANGES_REQUIRED | subagent `a5171c902c8059977` | Persistent compressed portrait chrome across resizes, hard 350px board floor for short iPhones, and horizontal AI-watch button expand regression. | Fix idempotent chrome reset, responsive board floor/tests, and AI-watch horizontal sizing. |
+| iPhone portrait redesign Task 3 follow-up | Implementation | VERIFIED | current agent | Fixed the three code-quality findings; extended tests for 375×667, 430×932, resize reset, and horizontal AI-watch expand-fill. | Ready for review; no commit made. |
+| iPhone portrait redesign Task 3 follow-up | Spec compliance | APPROVED | subagent `a40f8a8fd16a6c32b` | Idempotent chrome reset, responsive board floor, horizontal AI-watch expand-fill, and extended viewport tests satisfy follow-up requirements. | Proceed to code quality re-review. |
+| iPhone portrait redesign Task 3 follow-up | Code quality re-review | APPROVED | subagent `a0ede2b26eac3edf7` | Prior important issues fixed; focused portrait, AI-watch, parse smoke, and diff --check passed. Minor maintainability notes only. | Proceed to Task 4 vertical-only polish styling. |
+| iPhone portrait redesign Task 4 | Implementation | VERIFIED | subagent `a221509556d69d591` | Vertical-only card/button StyleBox polish added with RED/GREEN style assertions; focused portrait, AI-watch, parse smoke, Renju scan, and diff --check passed. | Proceed to spec compliance review. |
+| iPhone portrait redesign Task 4 | Spec compliance | APPROVED | subagent `a5348a397bc0f2207` | Style helpers and vertical-only card/button overrides meet requirements; horizontal override clearing and non-brittle style tests present. | Proceed to code quality review. |
+| iPhone portrait redesign Task 4 | Code quality | APPROVED | subagent `a1b1a39811a559d07` | No critical/important issues; minor disabled-state consistency note followed up with TDD. | Add disabled override follow-up and verify. |
+| iPhone portrait redesign Task 4 disabled follow-up | Code quality | APPROVED | subagent `a84048339ab14952f` | Disabled StyleBox override applies in portrait and is cleared in horizontal; TDD evidence accepted. | Proceed to final local verification. |
+| iPhone portrait redesign Task 4 | Implementation | VERIFIED | subagent `a221509556d69d591` | Vertical-only card/button StyleBox polish added with RED/GREEN style assertions; focused portrait, AI-watch, parse smoke, Renju scan, and diff --check passed. | Proceed to spec compliance review. |
+| iPhone portrait redesign Task 4 | Spec compliance | APPROVED | subagent `a5348a397bc0f2207` | Style helpers and vertical-only card/button overrides meet requirements; horizontal override clearing and non-brittle style tests present. | Proceed to code quality review. |
+| iPhone portrait redesign Task 4 disabled-button follow-up | Implementation | VERIFIED | current agent | Added RED/GREEN coverage for portrait `UndoButton.disabled` style override and horizontal clearing, then added vertical-only disabled StyleBox to all action buttons. | No commit made. |
 
 ---
 
@@ -95,6 +112,26 @@
 | 2026-05-02 iOS portrait UI sizing | token-shaped scan over `git diff origin/main...HEAD` before push | PASS | No matches; scan covered committed diff for `fd16f48` push. |
 | 2026-05-02 iOS portrait UI sizing | `git push origin main` | PASS | Pushed `4a03b9b..fd16f48` then checkpoint `fd16f48..bb2b95c` to GitHub. |
 | 2026-05-02 iOS portrait UI sizing | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25256049033` | PASS | Run `25256049033` succeeded for head SHA `bb2b95cb9137927d521f7fe71fbe945601d1cb27`; background monitor task `b89y65gc6` exited 0. |
+| 2026-05-03 00:49 UTC | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new assertion failed: `BoardFrame should be wide enough for iPhone portrait (width=268.0, min=350.0, rect=[P: (61, 324), S: (268, 268)])`. Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 2 vertical card hosts | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
+| 2026-05-03 Task 2 vertical card hosts | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Still fails only on intended BoardFrame width assertion (`width=268.0, min=350.0`); no missing-node or parse errors. |
+| 2026-05-03 Task 2 code review fix | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
+| 2026-05-03 Task 2 code review fix | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Still fails only on intended BoardFrame width assertion (`width=268.0, min=350.0`); no missing-node or parse errors. |
+| 2026-05-03 Task 3 follow-up RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | New short-portrait coverage failed on `VerticalLayout outside (375, 667)` before implementation; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 3 follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | Extended 390×844, 375×667, 430×932, resize reset, and horizontal AI-watch expand-fill assertions passed; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 3 follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | AI-watch regression passed after preserving Pause/Step/Auto `SIZE_EXPAND_FILL`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 3 follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
+| 2026-05-03 Task 3 follow-up | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 Task 4 vertical-only polish RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new style assertion failed on missing `VerticalStatusCard` portrait panel override; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 vertical-only polish | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | Portrait card/button style assertions, horizontal style-clear assertions, and existing portrait sizing checks passed; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 vertical-only polish | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | AI-watch regression passed; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 vertical-only polish | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
+| 2026-05-03 Task 4 vertical-only polish | `grep -R "Renju" -n /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/scenes /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/project.godot` | PASS | No matches; exit code 1 expected. |
+| 2026-05-03 Task 4 vertical-only polish | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 Task 4 disabled-button follow-up RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new assertion failed: `UndoButton should have a portrait disabled style override`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 disabled-button follow-up GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 disabled-button follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Task 4 disabled-button follow-up | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
 
 ---
 
