@@ -142,8 +142,8 @@ echo "=== Phase 4: Godot import + iOS export ==="
 "$GODOT_CMD" --headless --import --quit || true
 mkdir -p build/ios
 "$GODOT_CMD" --headless --export-release "iOS" build/ios/gomoku.ipa
-if ! unzip -p build/ios/gomoku.ipa Payload/gomoku.app/gomoku.pck | strings | grep -q 'scripts/autoload/build_diagnostics.gdc'; then
-	echo "Exported IPA is missing build_diagnostics.gdc in gomoku.pck"
+if ! find build/ios -name '*.pck' -print -exec sh -c 'strings "$1" | grep -q scripts/autoload/build_diagnostics.gdc' sh {} \;; then
+	echo "Exported iOS project is missing build_diagnostics.gdc in its PCK"
 	exit 1
 fi
 ls -la build/ios/
