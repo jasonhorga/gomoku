@@ -14,6 +14,7 @@ config/icon="res://assets/icon_512.png"
 Log="*res://scripts/autoload/logger.gd"
 NetworkManager="*res://scripts/autoload/network_manager.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
+BuildDiagnostics="*res://scripts/autoload/build_diagnostics.gd"
 
 [display]
 
