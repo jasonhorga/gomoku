@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** TESTFLIGHT_SUCCEEDED_PENDING_DEVICE_VALIDATION
-**Workflow:** subagent-driven-development + test-driven-development
+**Status:** BLOCKED_ON_UI_DESIGN_APPROVAL
+**Workflow:** brainstorming + design-before-implementation
 **Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-03 03:05 UTC
-**Last known commit:** `8b90682`
-**Current task:** TestFlight workflow run `25268222929` succeeded for iPhone portrait gameplay UI redesign; final IPA plist verified iPhone portrait and iPad landscape orientations.
-**Next action:** Ask user to validate iPhone portrait gameplay UI sizing/polish plus iPad/macOS layout on devices. Preserve worktree until validation or explicit cleanup approval.
+**Last updated:** 2026-05-03 03:15 UTC
+**Last known commit:** `1e811c9`
+**Current task:** User provided device screenshots in `layout/` showing the shipped TestFlight UI is still unacceptable despite run `25268222929` succeeding and IPA orientation verifying correctly.
+**Next action:** Review `layout/*.jpeg`, create a concrete iPhone portrait gameplay UI mockup/design for user approval, and do not implement further code until the user approves the design. Preserve worktree until validation or explicit cleanup approval.
 
 ---
 
@@ -39,11 +39,11 @@
 
 **Last completed safe point:** TestFlight run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`; downloaded artifact `/tmp/gomoku-testflight-25268222929/gomoku-main/gomoku.ipa` and verified final plist orientation arrays.
 
-**In progress:** Waiting for target-device validation of the redesigned iPhone portrait gameplay UI and unchanged iPad/macOS horizontal layouts.
+**In progress:** User screenshots in `layout/` show current UI is still visually unacceptable: main menu/setup screens are tiny and centered in a mostly empty portrait viewport; gameplay board/status/actions are poorly placed. User requested a proper design/mockup for confirmation before further implementation.
 
-**Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
+**Blockers/questions:** Blocked on design approval. Do not continue implementation from the current code-first approach. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes plus untracked `layout/` screenshots; never use blanket staging.
 
-**Next exact action:** Ask user to validate iPhone portrait gameplay UI sizing/polish plus iPad/macOS layout on devices; preserve worktree until validation or explicit cleanup approval.
+**Next exact action:** Produce a concrete iPhone portrait UI mockup/design based on `layout/*.jpeg` and ask for user approval; no further code changes until approved.
 
 ---
 
@@ -131,6 +131,7 @@
 | 2026-05-03 final merge verification | Merged main focused/regression suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `AI_WATCH_TASK8_TESTS`; merge diff whitespace and token scan passed. |
 | 2026-05-03 TestFlight redesign | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25268222929` | PASS | Run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`. |
 | 2026-05-03 TestFlight redesign | Downloaded final IPA artifact and inspected `Payload/gomoku.app/Info.plist` | PASS | `UIDeviceFamily=[1,2]`; iPhone `['UIInterfaceOrientationPortrait']`; iPad `['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']`. |
+| 2026-05-03 device screenshot review | Read `layout/16EF85C5-B6B1-43DE-B1DE-5CD057BA5CB7_4_5005_c.jpeg`, `layout/340F7D35-03B7-4FE7-908F-F81D3D80BBED_4_5005_c.jpeg`, `layout/F54FB2C5-227B-4034-99D8-7010722755D6_4_5005_c.jpeg` | FAIL FOUND | Portrait UI remains unacceptable: menu/setup content tiny and centered in empty viewport; gameplay board/status/actions placement still poor. Need design/mockup approval before more code. |
 | 2026-05-03 Task 4 disabled-button follow-up RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new assertion failed: `UndoButton should have a portrait disabled style override`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
