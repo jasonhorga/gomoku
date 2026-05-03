@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-03-promax-portrait-ui.md`
-**Status:** MERGED_PROMAX_PORTRAIT_UI_TO_MAIN
+**Status:** TESTFLIGHT_DISPATCHED_PROMAX_PORTRAIT_UI
 **Workflow:** subagent-driven-development
 **Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish` preserved for device validation
-**Last updated:** 2026-05-03 06:55 UTC
-**Last known commit:** `10cae3f`
-**Current task:** Task 5 — Merged Pro Max portrait UI branch to main after verification.
-**Next action:** Commit this merge checkpoint, rerun token scan immediately before public push, push `origin main`, dispatch TestFlight, and preserve the worktree until device validation or explicit cleanup approval.
+**Last updated:** 2026-05-03 08:03 UTC
+**Last known commit:** `bff2c61`
+**Current task:** Task 5 — Pro Max portrait UI merged, pushed, and TestFlight workflow succeeded.
+**Next action:** Wait for iPhone/iPad/macOS device validation; preserve the worktree until validation passes or explicit cleanup approval.
 
 ---
 
@@ -41,13 +41,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** Merge commit `10cae3f` brought Pro Max portrait gameplay/menu/setup UI into main after merged-result verification passed.
+**Last completed safe point:** Commit `bff2c61` is pushed to `origin/main`, and TestFlight workflow run `25273601395` succeeded for that commit.
 
-**In progress:** Merge checkpoint is unstaged and should be committed before public push.
+**In progress:** Waiting for iPhone/iPad/macOS device validation of the TestFlight build.
 
-**Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain untouched. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
+**Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain untouched until validation passes or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Commit this merge checkpoint, rerun token scan immediately before public push, push `origin main`, dispatch TestFlight, then preserve the worktree until device validation or explicit cleanup approval.
+**Next exact action:** Commit this TestFlight checkpoint, then wait for target-device validation before cleaning up the preserved worktree.
 
 ---
 
@@ -192,6 +192,11 @@
 | 2026-05-03 Pro Max portrait branch final verification | `grep -R "Renju" -n /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/scenes /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/project.godot` | PASS | No matches; exit code 1 expected. |
 | 2026-05-03 Pro Max portrait branch final verification | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check` | PASS | No whitespace errors. |
 | 2026-05-03 Pro Max portrait branch final verification | token-pattern scan over `git diff main...HEAD` | PASS | No matches; grep exit code 1 expected. |
+| 2026-05-03 Pro Max portrait main merge | merged-result Godot focused/regression suite plus `git diff --check` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `IPHONE_PORTRAIT_MENU_UI_TASK_TESTS`, layout, AI-watch, undo, replay, rules selector, setup rules, AI Lab rules passed on merged main; Linux `gomoku_neural` warning expected. |
+| 2026-05-03 Pro Max portrait main push | token-pattern scan over `git diff origin/main..HEAD` immediately before push | PASS | No token-shaped matches before pushing public `main`. |
+| 2026-05-03 Pro Max portrait main push | `git push origin main` | PASS | Pushed `8a89e77..bff2c61` to GitHub. |
+| 2026-05-03 Pro Max portrait TestFlight | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25273601395` | PASS | Run `25273601395` succeeded for head SHA `bff2c6179e45d0a5745f621e5f1f928b1e86647c`. |
+| 2026-05-03 Pro Max portrait TestFlight | `gh api repos/jasonhorga/gomoku/actions/runs/25273601395/artifacts` | PASS | Artifact `gomoku-main` exists, not expired, size `29527688` bytes. |
 
 ---
 
