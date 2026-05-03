@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** READY_TO_COMMIT_IPHONE_PORTRAIT_UI_REDESIGN
+**Status:** TESTFLIGHT_RUNNING_IPHONE_PORTRAIT_UI_REDESIGN
 **Workflow:** subagent-driven-development + test-driven-development
-**Branch:** `offline-ux-polish`
+**Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-03 03:05 UTC
-**Last known commit:** `38414c8`
-**Current task:** iPhone portrait gameplay UI redesign locally verified after Task 4 disabled-state polish follow-up.
-**Next action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight; preserve worktree until device validation or explicit cleanup approval.
+**Last updated:** 2026-05-03 02:56 UTC
+**Last known commit:** `b0f6683`
+**Current task:** TestFlight workflow run `25268222929` queued after pushing iPhone portrait gameplay UI redesign to `main`.
+**Next action:** Monitor TestFlight run `25268222929`; if it succeeds, inspect/verify final IPA artifacts if available and ask user to validate iPhone/iPad/macOS. Preserve worktree until validation or explicit cleanup approval.
 
 ---
 
