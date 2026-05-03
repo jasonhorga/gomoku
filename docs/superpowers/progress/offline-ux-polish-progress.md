@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-02-offline-ux-polish.md`
-**Status:** TESTFLIGHT_RUNNING_IPHONE_PORTRAIT_UI_REDESIGN
+**Status:** TESTFLIGHT_SUCCEEDED_PENDING_DEVICE_VALIDATION
 **Workflow:** subagent-driven-development + test-driven-development
 **Branch:** `main`
 **Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-03 02:56 UTC
-**Last known commit:** `b0f6683`
-**Current task:** TestFlight workflow run `25268222929` queued after pushing iPhone portrait gameplay UI redesign to `main`.
-**Next action:** Monitor TestFlight run `25268222929`; if it succeeds, inspect/verify final IPA artifacts if available and ask user to validate iPhone/iPad/macOS. Preserve worktree until validation or explicit cleanup approval.
+**Last updated:** 2026-05-03 03:05 UTC
+**Last known commit:** `8b90682`
+**Current task:** TestFlight workflow run `25268222929` succeeded for iPhone portrait gameplay UI redesign; final IPA plist verified iPhone portrait and iPad landscape orientations.
+**Next action:** Ask user to validate iPhone portrait gameplay UI sizing/polish plus iPad/macOS layout on devices. Preserve worktree until validation or explicit cleanup approval.
 
 ---
 
@@ -37,13 +37,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** Final local verification passed after Task 4 disabled-button follow-up. Portrait gameplay action buttons now receive vertical-only normal/hover/pressed/disabled StyleBox overrides, horizontal layout clears them, and extended portrait tests cover 390×844, 375×667, 430×932, resize reset, and AI-watch horizontal sizing.
+**Last completed safe point:** TestFlight run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`; downloaded artifact `/tmp/gomoku-testflight-25268222929/gomoku-main/gomoku.ipa` and verified final plist orientation arrays.
 
-**In progress:** Ready to commit intended files only: `docs/superpowers/progress/offline-ux-polish-progress.md`, `scenes/game/game.gd`, `scenes/game/game.tscn`, and `tools/test_iphone_portrait_ui_task.gd`.
+**In progress:** Waiting for target-device validation of the redesigned iPhone portrait gameplay UI and unchanged iPad/macOS horizontal layouts.
 
 **Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain until target-device validation or explicit cleanup approval. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Commit only intended files, then merge/push following finishing-branch flow and dispatch TestFlight; preserve worktree until device validation or explicit cleanup approval.
+**Next exact action:** Ask user to validate iPhone portrait gameplay UI sizing/polish plus iPad/macOS layout on devices; preserve worktree until validation or explicit cleanup approval.
 
 ---
 
@@ -128,6 +128,9 @@
 | 2026-05-03 Task 4 vertical-only polish | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish --quit` | PASS | Parse/smoke passed with expected Linux `gomoku_neural` warning. |
 | 2026-05-03 Task 4 vertical-only polish | `grep -R "Renju" -n /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/scenes /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish/project.godot` | PASS | No matches; exit code 1 expected. |
 | 2026-05-03 Task 4 vertical-only polish | `git -C /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish diff --check -- scenes/game/game.gd tools/test_iphone_portrait_ui_task.gd docs/superpowers/progress/offline-ux-polish-progress.md` | PASS | No whitespace errors. |
+| 2026-05-03 final merge verification | Merged main focused/regression suite | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS`, `GAME_LAYOUT_TASK4_TESTS`, `AI_WATCH_TASK8_TESTS`; merge diff whitespace and token scan passed. |
+| 2026-05-03 TestFlight redesign | `gh workflow run "CD — TestFlight (iOS)" --repo jasonhorga/gomoku --ref main` / `gh run watch 25268222929` | PASS | Run `25268222929` succeeded for head SHA `b0f66833d6696daf86d261b05326617f978e7855`. |
+| 2026-05-03 TestFlight redesign | Downloaded final IPA artifact and inspected `Payload/gomoku.app/Info.plist` | PASS | `UIDeviceFamily=[1,2]`; iPhone `['UIInterfaceOrientationPortrait']`; iPad `['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']`. |
 | 2026-05-03 Task 4 disabled-button follow-up RED | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | RED FAIL | Intended new assertion failed: `UndoButton should have a portrait disabled style override`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up GREEN | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_iphone_portrait_ui_task.tscn` | PASS | `IPHONE_PORTRAIT_UI_TASK_TESTS PASS`; Linux `gomoku_neural` warning expected. |
 | 2026-05-03 Task 4 disabled-button follow-up | `godot --headless --path /home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish res://tools/test_ai_watch_task8.tscn` | PASS | `AI_WATCH_TASK8_TESTS PASS`; Linux `gomoku_neural` warning expected. |
