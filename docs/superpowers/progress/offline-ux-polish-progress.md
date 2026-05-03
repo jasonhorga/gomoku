@@ -1,14 +1,14 @@
 # Progress: Offline UX Polish
 
 **Plan:** `docs/superpowers/plans/2026-05-03-promax-portrait-ui.md`
-**Status:** REVIEWING_PROMAX_PORTRAIT_UI_BRANCH
+**Status:** MERGED_PROMAX_PORTRAIT_UI_TO_MAIN
 **Workflow:** subagent-driven-development
-**Branch:** `offline-ux-polish`
-**Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish`
-**Last updated:** 2026-05-03 06:30 UTC
-**Last known commit:** `5d2c689`
-**Current task:** Task 5 — Final review for Pro Max portrait UI branch.
-**Next action:** Request final code review; if approved, commit the progress verification checkpoint and follow finishing branch flow while preserving the worktree.
+**Branch:** `main`
+**Worktree:** `/home/ubuntu/.config/superpowers/worktrees/gomoku/offline-ux-polish` preserved for device validation
+**Last updated:** 2026-05-03 06:55 UTC
+**Last known commit:** `10cae3f`
+**Current task:** Task 5 — Merged Pro Max portrait UI branch to main after verification.
+**Next action:** Commit this merge checkpoint, rerun token scan immediately before public push, push `origin main`, dispatch TestFlight, and preserve the worktree until device validation or explicit cleanup approval.
 
 ---
 
@@ -41,13 +41,13 @@
 
 ## Current Handoff
 
-**Last completed safe point:** Commit `5d2c689` contains the Pro Max portrait menu/setup layout slice; final branch verification and final review are recorded in this file.
+**Last completed safe point:** Merge commit `10cae3f` brought Pro Max portrait gameplay/menu/setup UI into main after merged-result verification passed.
 
-**In progress:** Final progress checkpoint is unstaged and should be committed before finishing branch flow.
+**In progress:** Merge checkpoint is unstaged and should be committed before public push.
 
 **Blockers/questions:** None known. The preserved worktree still has untracked `.superpowers/` scratch and must remain untouched. The canonical main checkout still has unrelated training-script changes, so never use blanket staging.
 
-**Next exact action:** Commit this progress checkpoint, rerun token scan immediately before any public push, then follow finishing branch flow while preserving the worktree until device validation or explicit cleanup approval.
+**Next exact action:** Commit this merge checkpoint, rerun token scan immediately before public push, push `origin main`, dispatch TestFlight, then preserve the worktree until device validation or explicit cleanup approval.
 
 ---
 
