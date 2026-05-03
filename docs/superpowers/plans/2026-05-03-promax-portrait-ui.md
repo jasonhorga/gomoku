@@ -788,7 +788,7 @@ In `scenes/main_menu/main_menu.gd`, add onready references near existing variabl
 @onready var ai_lab_button: Button = $VBoxContainer/AiLabButton
 @onready var online_button: Button = $VBoxContainer/OnlineButton
 @onready var quit_button: Button = $VBoxContainer/QuitButton
-@onready var status_label: Label = $VBoxContainer/StatusLabel
+@onready var status_label: Label = %StatusLabel
 ```
 
 Add:
@@ -867,7 +867,7 @@ In `scenes/ai_setup/ai_setup.gd`, add onready references:
 ```gdscript
 @onready var setup_container: VBoxContainer = $VBoxContainer
 @onready var title_label: Label = $VBoxContainer/TitleLabel
-@onready var color_buttons: HBoxContainer = $VBoxContainer/ColorButtons
+@onready var color_buttons: VBoxContainer = $VBoxContainer/ColorButtons
 @onready var black_button: Button = $VBoxContainer/ColorButtons/BlackButton
 @onready var white_button: Button = $VBoxContainer/ColorButtons/WhiteButton
 @onready var level_grid: GridContainer = $VBoxContainer/LevelGrid
@@ -899,10 +899,9 @@ func _apply_phone_layout() -> void:
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.add_theme_font_size_override("font_size", 30)
 	color_buttons.custom_minimum_size.x = content_width
-	black_button.custom_minimum_size = Vector2((content_width - 10.0) * 0.5, 52.0)
-	white_button.custom_minimum_size = Vector2((content_width - 10.0) * 0.5, 52.0)
-	black_button.add_theme_font_size_override("font_size", 18)
-	white_button.add_theme_font_size_override("font_size", 18)
+	color_buttons.add_theme_constant_override("separation", 10)
+	_apply_phone_button(black_button, 18)
+	_apply_phone_button(white_button, 18)
 	level_grid.custom_minimum_size.x = content_width
 	level_grid.columns = 2
 	rules_selector.custom_minimum_size.x = content_width
@@ -912,7 +911,7 @@ func _apply_phone_layout() -> void:
 	_apply_phone_button(start_button, 20)
 ```
 
-If `BottomButtons` as `HBoxContainer` cannot make both buttons full-width without overflow, change the scene node to `VBoxContainer` only in portrait-safe structure, or add a vertical-only wrapper. The resulting rendered `BackButton` and `StartButton` must each be at least `396px` wide on 430×932.
+Change `ColorButtons` to a vertical stack (or add a portrait-only vertical color host) so rendered `BlackButton` and `WhiteButton` are each full-width phone controls in portrait. If `BottomButtons` as `HBoxContainer` cannot make both buttons full-width without overflow, change the scene node to `VBoxContainer` only in portrait-safe structure, or add a vertical-only wrapper. The resulting rendered `BlackButton`, `WhiteButton`, `BackButton`, and `StartButton` must each be at least `396px` wide on 430×932.
 
 - [ ] **Step 7: Implement AI Lab phone layout**
 
@@ -929,7 +928,7 @@ In `scenes/ai_lab/ai_lab.gd`, add onready references:
 @onready var action_row: HBoxContainer = $VBoxContainer/ActionRow
 @onready var watch_button: Button = $VBoxContainer/ActionRow/WatchButton
 @onready var run_batch_button: Button = $VBoxContainer/ActionRow/RunBatchButton
-@onready var replay_last_batch_button: Button = $VBoxContainer/BatchRow/ReplayLastBatchButton
+@onready var replay_last_batch_button: Button = $VBoxContainer/ReplayLastBatchButton
 @onready var back_button: Button = $VBoxContainer/BackButton
 ```
 
